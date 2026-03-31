@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Code Dashboard — Plan</title>
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    :root {
+      --bg: #0e1015;
+      --bg-elevated: #191c24;
+      --bg-hover: #1f2330;
+      --card: #161920;
+      --text: #d4d4d8;
+      --text-strong: #f4f4f5;
+      --muted: #838387;
+      --border: #1e2028;
+      --border-strong: #2e3040;
+      --accent: #da7756;
+      --accent-subtle: rgba(218, 119, 86, 0.1);
+      --accent-glow: rgba(218, 119, 86, 0.2);
+      --ok: #22c55e;
+      --ok-subtle: rgba(34, 197, 94, 0.08);
+      --warn: #f59e0b;
+      --warn-subtle: rgba(245, 158, 11, 0.08);
+      --info: #3b82f6;
+      --info-subtle: rgba(59, 130, 246, 0.08);
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 400 15px/1.7 var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { max-width: 900px; margin: 0 auto; padding: 48px 32px 96px; }
+    h1 {
+      font-size: 32px; font-weight: 700; letter-spacing: -0.03em;
+      color: var(--text-strong); margin: 0 0 8px;
+    }
+    h1 span { color: var(--accent); }
+    .subtitle { color: var(--muted); font-size: 15px; margin: 0 0 40px; }
+    h2 {
+      font-size: 20px; font-weight: 650; letter-spacing: -0.02em;
+      color: var(--text-strong); margin: 40px 0 16px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 15px; font-weight: 650; color: var(--text-strong); margin: 24px 0 8px; }
+    p, li { color: var(--text); }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    code {
+      font-family: var(--mono); font-size: 13px;
+      background: var(--bg-elevated); padding: 2px 6px;
+      border-radius: 4px; border: 1px solid var(--border);
+    }
+    pre {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 20px;
+      overflow-x: auto; font-family: var(--mono); font-size: 13px;
+      line-height: 1.6; color: var(--muted);
+    }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 4px; }
+    li::marker { color: var(--muted); }
+
+    /* Phase cards */
+    .phase {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px 28px;
+      margin: 16px 0; position: relative; overflow: hidden;
+    }
+    .phase::before {
+      content: ""; position: absolute; top: 0; left: 0;
+      width: 4px; height: 100%; border-radius: 4px 0 0 4px;
+    }
+    .phase--done::before { background: var(--ok); }
+    .phase--active::before { background: var(--accent); }
+    .phase--planned::before { background: var(--border-strong); }
+    .phase__head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .phase__badge {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 3px 10px;
+      border-radius: 9999px; white-space: nowrap;
+    }
+    .badge--done { background: var(--ok-subtle); color: var(--ok); }
+    .badge--active { background: var(--accent-subtle); color: var(--accent); }
+    .badge--planned { background: var(--bg-hover); color: var(--muted); }
+    .phase__title { font-size: 17px; font-weight: 650; color: var(--text-strong); }
+    .phase__desc { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+
+    /* Checklist */
+    .checklist { list-style: none; padding: 0; margin: 0; }
+    .checklist li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 6px 0; font-size: 14px;
+    }
+    .check { flex-shrink: 0; width: 18px; height: 18px; margin-top: 2px;
+      border-radius: 4px; display: flex; align-items: center; justify-content: center;
+      font-size: 12px; }
+    .check--done { background: var(--ok-subtle); color: var(--ok); }
+    .check--todo { background: var(--bg-hover); color: var(--muted); border: 1px solid var(--border); }
+
+    /* Feature cards */
+    .features { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .feat {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 20px;
+    }
+    .feat__name { font-weight: 650; color: var(--text-strong); font-size: 14px; margin-bottom: 4px; }
+    .feat__desc { color: var(--muted); font-size: 13px; }
+    .feat__tag {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 9999px; margin-top: 8px;
+    }
+    .tag--p2 { background: var(--accent-subtle); color: var(--accent); }
+    .tag--p3 { background: var(--info-subtle); color: var(--info); }
+    .tag--idea { background: var(--warn-subtle); color: var(--warn); }
+
+    /* Architecture diagram */
+    .arch-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px;
+      font-family: var(--mono); font-size: 13px;
+      line-height: 1.5; color: var(--muted); white-space: pre; overflow-x: auto;
+    }
+
+    /* Principles */
+    .principles { display: grid; gap: 10px; }
+    .principle {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 16px; background: var(--card);
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+    }
+    .principle__num {
+      flex-shrink: 0; width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--accent-subtle); color: var(--accent);
+      font-size: 12px; font-weight: 700; border-radius: 6px;
+    }
+    .principle__text { font-size: 14px; }
+    .principle__text strong { color: var(--text-strong); }
+
+    /* Timestamp */
+    .updated {
+      margin-top: 48px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Claude Code <span>Dashboard</span></h1>
+  <p class="subtitle">
+    Personal session cockpit for Claude Code — browse sessions, resume conversations, stream live responses.
+    <br>Built with Lit + Vite + TypeScript. Borrows infrastructure from OpenClaw, designs fresh for Claude Code.
+  </p>
+
+  <!-- ============================================================ -->
+  <h2>Design Principles</h2>
+  <div class="principles">
+    <div class="principle">
+      <div class="principle__num">1</div>
+      <div class="principle__text"><strong>Design for Claude Code, not OpenClaw.</strong> Borrow infrastructure patterns (Lit components, WebSocket protocol, CSS tokens) but build the information architecture around Claude Code's mental model: projects, subagents, plan mode, tasks, permissions, memory.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">2</div>
+      <div class="principle__text"><strong>Personal tool, not a product.</strong> No themes, i18n, onboarding, multi-user, or feature flags. Lean and opinionated for a single power user on macOS.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">3</div>
+      <div class="principle__text"><strong>Read real data first, control later.</strong> Phase 1 is read-only (parse existing JSONL files). Phase 2 adds live interaction. Don't over-engineer the gateway before we know the data shape.</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>Architecture</h2>
+  <div class="arch-box">┌─────────────────────────┐  /api/* (HTTP)   ┌───────────────────┐
+│  Lit + Vite (SPA)       │ ───────────────> │  Gateway Server   │
+│  localhost:5173          │                  │  Node.js :18800   │
+│                         │  /ws (WebSocket) │                   │
+│  Chat = Session Cockpit │ &lt;═══════════════&gt;│  req/res/event    │
+│  Two-panel layout       │  streaming chunks│  frame protocol   │
+└─────────────────────────┘                  └─────────┬─────────┘
+                                                       │ spawns / reads
+                                              ┌────────┴────────┐
+                                              │                 │
+                                              v                 v
+                                    ┌──────────────┐  ┌──────────────┐
+                                    │ claude -p    │  │ ~/.claude/   │
+                                    │ --stream-json│  │   projects/  │
+                                    │ --verbose    │  │     *.jsonl  │
+                                    └──────────────┘  └──────────────┘</div>
+
+  <!-- ============================================================ -->
+  <h2>Phases</h2>
+
+  <!-- Phase 1 -->
+  <div class="phase phase--done">
+    <div class="phase__head">
+      <span class="phase__badge badge--done">Complete</span>
+      <span class="phase__title">Phase 1 — Static Dashboard (read-only)</span>
+    </div>
+    <p class="phase__desc">Lit + Vite app that reads existing Claude Code session data from <code>~/.claude/</code> via a gateway HTTP API.</p>
+    <ul class="checklist">
+      <li><span class="check check--done">&#10003;</span> Scaffolded Vite + Lit + TypeScript project (17 files)</li>
+      <li><span class="check check--done">&#10003;</span> Ported CSS design system from OpenClaw (base tokens, shell grid, component styles)</li>
+      <li><span class="check check--done">&#10003;</span> Recolored accent to Claude terracotta <code>#da7756</code></li>
+      <li><span class="check check--done">&#10003;</span> Built app shell with sidebar nav + hash-based tab routing</li>
+      <li><span class="check check--done">&#10003;</span> Built gateway server — JSONL parser, HTTP API on :18800</li>
+      <li><span class="check check--done">&#10003;</span> Built Overview view with stat cards (sessions, projects, tokens, cache)</li>
+      <li><span class="check check--done">&#10003;</span> Built Sessions view with sortable/filterable data table</li>
+      <li><span class="check check--done">&#10003;</span> Built Projects view grouped by codebase</li>
+      <li><span class="check check--done">&#10003;</span> Handles streaming message deduplication (same msg ID)</li>
+      <li><span class="check check--done">&#10003;</span> Skips sidechain/tool_result/interrupted messages for firstPrompt</li>
+      <li><span class="check check--done">&#10003;</span> Vitest test suite — 23 tests (14 gateway unit + 9 UI component)</li>
+      <li><span class="check check--done">&#10003;</span> Zero TypeScript errors, production build in 100ms</li>
+      <li><span class="check check--done">&#10003;</span> Verified with real data: 32 sessions across 2 projects</li>
+    </ul>
+  </div>
+
+  <!-- Phase 2 -->
+  <div class="phase phase--done">
+    <div class="phase__head">
+      <span class="phase__badge badge--done">Complete</span>
+      <span class="phase__title">Phase 2 — Gateway + Live Chat</span>
+    </div>
+    <p class="phase__desc">WebSocket gateway, streaming responses, and chat-as-session-cockpit with two-panel layout.</p>
+    <ul class="checklist">
+      <li><span class="check check--done">&#10003;</span> WebSocket server on :18800 with req/res/event frame protocol</li>
+      <li><span class="check check--done">&#10003;</span> Claude CLI service — spawn <code>claude -p --stream-json --verbose</code>, NDJSON parsing</li>
+      <li><span class="check check--done">&#10003;</span> Browser WebSocket client with exponential backoff reconnection</li>
+      <li><span class="check check--done">&#10003;</span> <strong>Chat redesigned as session cockpit</strong> — two-panel layout (sidebar + conversation)</li>
+      <li><span class="check check--done">&#10003;</span> Session sidebar — project switcher, sessions grouped by day, pinned sessions</li>
+      <li><span class="check check--done">&#10003;</span> Session pinning — star toggle, persisted in localStorage</li>
+      <li><span class="check check--done">&#10003;</span> Session history loading — paginated messages from JSONL (last 50, load-more button)</li>
+      <li><span class="check check--done">&#10003;</span> Session resume — sending a prompt with active session uses <code>claude -r &lt;id&gt;</code></li>
+      <li><span class="check check--done">&#10003;</span> Inline subagent blocks — collapsible <code>&lt;details&gt;</code> showing agent type, description, result</li>
+      <li><span class="check check--done">&#10003;</span> Inline tool blocks — same pattern for Read, Edit, Bash, Grep, etc.</li>
+      <li><span class="check check--done">&#10003;</span> Streaming message display with blinking cursor</li>
+      <li><span class="check check--done">&#10003;</span> Thinking content suppressed (internal reasoning hidden from UI)</li>
+      <li><span class="check check--done">&#10003;</span> Sessions table rows clickable → opens session in chat</li>
+      <li><span class="check check--done">&#10003;</span> Prompt via stdin (avoids ARG_MAX limits for large prompts)</li>
+      <li><span class="check check--done">&#10003;</span> HTTP + WebSocket dual-protocol gateway (HTTP fallback for initial load)</li>
+    </ul>
+  </div>
+
+  <!-- Phase 2.5 — Refinements -->
+  <div class="phase phase--active">
+    <div class="phase__head">
+      <span class="phase__badge badge--active">Next Up</span>
+      <span class="phase__title">Phase 2.5 — Chat Refinements</span>
+    </div>
+    <p class="phase__desc">Polish the session cockpit experience.</p>
+    <ul class="checklist">
+      <li><span class="check check--todo"></span> Tool approval modal (permission mode aware)</li>
+      <li><span class="check check--todo"></span> Model selector in chat input area</li>
+      <li><span class="check check--todo"></span> Conversation summary side panel (spawn summarization agent)</li>
+      <li><span class="check check--todo"></span> Entrypoint badges on sessions (cli vs claude-vscode)</li>
+      <li><span class="check check--done">&#10003;</span> Markdown rendering in assistant messages (<code>marked</code> + <code>unsafeHTML</code>, styled <code>.markdown-body</code>)</li>
+      <li><span class="check check--done">&#10003;</span> Collapsible thinking blocks — extended thinking shown in collapsed <code>&lt;details&gt;</code> above response</li>
+      <li><span class="check check--done">&#10003;</span> Tool-only message consolidation — consecutive tool-call round-trips merged into parent bubble</li>
+      <li><span class="check check--done">&#10003;</span> Session titles — parse <code>custom-title</code> from JSONL, inline rename (double-click), <code>sessions.rename</code> WS method</li>
+      <li><span class="check check--done">&#10003;</span> Auto-generate session titles — LLM title generation after first exchange, <code>session.titled</code> event for live UI update</li>
+    </ul>
+  </div>
+
+  <!-- Phase 3 -->
+  <div class="phase phase--planned">
+    <div class="phase__head">
+      <span class="phase__badge badge--planned">Planned</span>
+      <span class="phase__title">Phase 3 — Usage Analytics + Cost Tracking</span>
+    </div>
+    <p class="phase__desc">Full analytics with token breakdowns, Bedrock cost tracking, daily charts.</p>
+    <ul class="checklist">
+      <li><span class="check check--todo"></span> Usage aggregation service (by day, model, project)</li>
+      <li><span class="check check--todo"></span> Bedrock pricing mapper (model ID → $/token)</li>
+      <li><span class="check check--todo"></span> Usage views — overview, metrics, cost breakdown charts</li>
+      <li><span class="check check--todo"></span> Multi-project usage comparison</li>
+    </ul>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>Feature Backlog</h2>
+  <div class="features">
+    <div class="feat">
+      <div class="feat__name">Cost Tracking</div>
+      <div class="feat__desc">Estimate spend from token counts + model-specific Bedrock rates. JSONL doesn't store cost directly.</div>
+      <span class="feat__tag tag--p3">Phase 3</span>
+    </div>
+    <div class="feat">
+      <div class="feat__name">Conversation Summary</div>
+      <div class="feat__desc">Spawn a summarization agent to recap a session in a side panel. Helps catch up on long conversations without reading every message.</div>
+      <span class="feat__tag tag--idea">Phase 2.5</span>
+    </div>
+    <div class="feat">
+      <div class="feat__name">Markdown Rendering</div>
+      <div class="feat__desc">Render assistant messages as Markdown (code blocks, headings, lists, bold/italic).</div>
+      <span class="feat__tag tag--idea">Phase 2.5</span>
+    </div>
+    <div class="feat">
+      <div class="feat__name">Entrypoint Badges</div>
+      <div class="feat__desc">Show cli/vscode badge on session items so you know where work originated.</div>
+      <span class="feat__tag tag--idea">Phase 2.5</span>
+    </div>
+    <div class="feat">
+      <div class="feat__name">Memory Browser</div>
+      <div class="feat__desc">View and edit MEMORY.md + per-project memory files from the dashboard.</div>
+      <span class="feat__tag tag--idea">Idea</span>
+    </div>
+    <div class="feat">
+      <div class="feat__name">MCP Server Status</div>
+      <div class="feat__desc">Show connected MCP servers, available tools, and health status.</div>
+      <span class="feat__tag tag--idea">Idea</span>
+    </div>
+    <div class="feat">
+      <div class="feat__name">Hooks Viewer</div>
+      <div class="feat__desc">Display active hooks, their event triggers, and recent execution logs.</div>
+      <span class="feat__tag tag--idea">Idea</span>
+    </div>
+    <div class="feat">
+      <div class="feat__name">Tool Approval Modal</div>
+      <div class="feat__desc">When Claude requests permission to use a tool, show an approval overlay (permission mode aware).</div>
+      <span class="feat__tag tag--idea">Phase 2.5</span>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>Design Decisions Log</h2>
+  <h3>Chat = Session Cockpit (decided 2026-03-31)</h3>
+  <p>The Chat tab is the <strong>primary interaction surface</strong>, not a utility. Each conversation has a persistent session identity. The two-panel layout — session sidebar on the left, conversation on the right — lets you manage long-lived sessions (like "personal finance app research" or "home renovation planning") and return to them over time.</p>
+  <ul>
+    <li>Sessions are scoped to projects (directories). Project switcher controls which sessions appear.</li>
+    <li>New sessions start with <code>claude -p</code>; resuming uses <code>claude -r &lt;id&gt;</code></li>
+    <li>Project memory (<code>CLAUDE.md</code>, <code>memory/</code>) persists across sessions — the bridge between ephemeral conversations</li>
+    <li>Multiple sessions per project exist for: context window management, parallel workstreams, different scopes, different entrypoints</li>
+    <li>Subagents are inlined in parent session (not separate JSONL files) — shown as collapsible blocks</li>
+  </ul>
+
+  <!-- ============================================================ -->
+  <h2>Tech Stack</h2>
+  <ul>
+    <li><strong>UI:</strong> <a href="https://lit.dev">Lit 3</a> — Web Components with reactive properties</li>
+    <li><strong>Tooling:</strong> <a href="https://vite.dev">Vite 6</a> — dev server (ESM native) + Rollup bundler</li>
+    <li><strong>Language:</strong> TypeScript 5 — strict mode, <code>useDefineForClassFields: false</code> for Lit compatibility</li>
+    <li><strong>Gateway:</strong> Node.js HTTP + WebSocket server (<code>ws</code> package, req/res/event frame protocol)</li>
+    <li><strong>Testing:</strong> Vitest + jsdom + @open-wc/testing</li>
+    <li><strong>Reference:</strong> OpenClaw (MIT) at <code>~/code/openclaw/</code> — infrastructure patterns only</li>
+  </ul>
+
+  <!-- ============================================================ -->
+  <h2>Key Data Insights</h2>
+  <h3>JSONL Session Format</h3>
+  <p>Each <code>~/.claude/projects/&lt;encoded-path&gt;/&lt;session-id&gt;.jsonl</code> contains newline-delimited JSON:</p>
+  <pre>{
+  "type": "user" | "assistant" | "file-history-snapshot" | "system" | "agent-name" | "custom-title",
+  "sessionId": "uuid",
+  "timestamp": "ISO-8601",
+  "cwd": "/Users/bryao/code/...",
+  "entrypoint": "cli" | "claude-vscode",
+  "version": "2.1.87",
+  "message": {
+    "role": "user" | "assistant",
+    "content": "string" | [{ type, text, ... }],
+    "model": "claude-opus-4-6",
+    "id": "msg_...",           // same ID across streaming chunks
+    "usage": { input_tokens, output_tokens, cache_read_input_tokens, ... }
+  },
+  "isSidechain": false,        // branched conversation
+  "sourceToolAssistantUUID": "..." // links to parent tool_use
+}</pre>
+
+  <h3>Subagent Detection</h3>
+  <ul>
+    <li>Subagents do <strong>not</strong> create separate JSONL files — they're inlined in the parent session</li>
+    <li><code>tool_use</code> blocks with <code>name: "Agent"</code> mark subagent spawns</li>
+    <li><code>sourceToolAssistantUUID</code> on "user" messages = tool result fed back from assistant</li>
+    <li><code>type: "agent-name"</code> lines record the session's display name</li>
+  </ul>
+
+  <h3>Project Encoding</h3>
+  <p>Directory <code>-Users-bryao-code-myproject</code> decodes to <code>/Users/bryao/code/myproject</code> (dashes → slashes).</p>
+
+  <!-- ============================================================ -->
+  <h2>Commands</h2>
+  <pre>cd ~/code/claude-code-dashboard
+
+npm run dev          # Start both UI (:5173) and gateway (:18800)
+npm run dev:ui       # Vite dev server only
+npm run dev:gateway  # Gateway server only
+npm test             # Run all 48 tests
+npm run test:watch   # Tests in watch mode
+npm run build        # Production build → dist/</pre>
+
+  <p class="updated">Last updated: 2026-03-31 — Phase 1 + Phase 2 complete, Phase 2.5 in progress, 30 tests passing</p>
+
+</div>
+</body>
+</html>
