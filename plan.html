@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Claude Code Dashboard — Plan</title>
+  <title>ClaudeCockpit — Plan</title>
   <link rel="icon" href="/favicon.ico" />
   <style>
     :root {
@@ -162,7 +162,7 @@
 <body>
 <div class="page">
 
-  <h1>Claude Code <span>Dashboard</span></h1>
+  <h1>Claude<span>Cockpit</span></h1>
   <p class="subtitle">
     Personal session cockpit for Claude Code — browse sessions, resume conversations, stream live responses.
     <br>Built with Lit + Vite + TypeScript. Borrows infrastructure from OpenClaw, designs fresh for Claude Code.
@@ -211,7 +211,7 @@
   <div class="phase phase--done">
     <div class="phase__head">
       <span class="phase__badge badge--done">Complete</span>
-      <span class="phase__title">Phase 1 — Static Dashboard (read-only)</span>
+      <span class="phase__title">Phase 1 — Static Cockpit (read-only)</span>
     </div>
     <p class="phase__desc">Lit + Vite app that reads existing Claude Code session data from <code>~/.claude/</code> via a gateway HTTP API.</p>
     <ul class="checklist">
@@ -317,7 +317,7 @@
     </div>
     <div class="feat">
       <div class="feat__name">Memory Browser</div>
-      <div class="feat__desc">View and edit MEMORY.md + per-project memory files from the dashboard.</div>
+      <div class="feat__desc">View and edit MEMORY.md + per-project memory files from the cockpit.</div>
       <span class="feat__tag tag--idea">Idea</span>
     </div>
     <div class="feat">
@@ -395,7 +395,7 @@
 
   <!-- ============================================================ -->
   <h2>Commands</h2>
-  <pre>cd ~/code/claude-code-dashboard
+  <pre>cd ~/Code/ClaudeCockpit
 
 npm run dev          # Start both UI (:5173) and gateway (:18800)
 npm run dev:ui       # Vite dev server only

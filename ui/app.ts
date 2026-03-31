@@ -1,7 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import type {
-  DashboardTab,
+  CockpitTab,
   SessionSummary,
   OverviewStats,
   Project,
@@ -11,7 +11,7 @@ import "./views/overview.ts";
 import "./views/sessions.ts";
 import "./views/projects.ts";
 import "./views/chat.ts";
-import type { DashboardChat } from "./views/chat.ts";
+import type { CockpitChat } from "./views/chat.ts";
 
 // SVG icon helpers
 const icons = {
@@ -22,7 +22,7 @@ const icons = {
   chat: html`<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`,
 };
 
-type NavItem = { id: DashboardTab; label: string; icon: typeof icons.overview };
+type NavItem = { id: CockpitTab; label: string; icon: typeof icons.overview };
 
 const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", icon: icons.overview },
@@ -32,13 +32,13 @@ const NAV_ITEMS: NavItem[] = [
   { id: "usage", label: "Usage", icon: icons.usage },
 ];
 
-@customElement("dashboard-app")
-export class DashboardApp extends LitElement {
+@customElement("cockpit-app")
+export class CockpitApp extends LitElement {
   protected override createRenderRoot() {
     return this;
   }
 
-  @state() private tab: DashboardTab = "overview";
+  @state() private tab: CockpitTab = "overview";
   @state() private connected = false;
   @state() private loading = true;
   @state() private overviewStats: OverviewStats | null = null;
@@ -54,7 +54,7 @@ export class DashboardApp extends LitElement {
     super.connectedCallback();
     const hash = window.location.hash.slice(1);
     if (hash && NAV_ITEMS.some((n) => n.id === hash)) {
-      this.tab = hash as DashboardTab;
+      this.tab = hash as CockpitTab;
     }
     window.addEventListener("hashchange", this._onHashChange);
 
@@ -80,7 +80,7 @@ export class DashboardApp extends LitElement {
   private _onHashChange = () => {
     const hash = window.location.hash.slice(1);
     if (hash && NAV_ITEMS.some((n) => n.id === hash)) {
-      this.tab = hash as DashboardTab;
+      this.tab = hash as CockpitTab;
     }
   };
 
@@ -128,7 +128,7 @@ export class DashboardApp extends LitElement {
     }
   }
 
-  private _navigate(tab: DashboardTab) {
+  private _navigate(tab: CockpitTab) {
     this.tab = tab;
     window.location.hash = tab;
   }
@@ -140,7 +140,7 @@ export class DashboardApp extends LitElement {
 
   override updated() {
     if (this.tab === "chat") {
-      const chatEl = this.querySelector("dashboard-chat") as DashboardChat | null;
+      const chatEl = this.querySelector("cockpit-chat") as CockpitChat | null;
       if (chatEl && this.gateway) {
         chatEl.setGateway(this.gateway);
         // If we have a pending session to open, load it
@@ -162,7 +162,7 @@ export class DashboardApp extends LitElement {
             </div>
             <div class="sidebar-nav">
               <div class="nav-section">
-                <div class="nav-section__label">Dashboard</div>
+                <div class="nav-section__label">Cockpit</div>
                 ${NAV_ITEMS.map(
                   (item) => html`
                     <button
@@ -190,7 +190,7 @@ export class DashboardApp extends LitElement {
 
         <header class="topbar">
           <span class="topbar__title">
-            ${NAV_ITEMS.find((n) => n.id === this.tab)?.label ?? "Dashboard"}
+            ${NAV_ITEMS.find((n) => n.id === this.tab)?.label ?? "Cockpit"}
           </span>
           <div class="topbar__status">
             <span class="pill ${this.connected ? "pill--ok" : "pill--danger"}">
@@ -215,30 +215,30 @@ export class DashboardApp extends LitElement {
     switch (this.tab) {
       case "overview":
         return html`
-          <dashboard-overview
+          <cockpit-overview
             .stats=${this.overviewStats}
-            .onNavigate=${(tab: DashboardTab) => this._navigate(tab)}
-          ></dashboard-overview>
+            .onNavigate=${(tab: CockpitTab) => this._navigate(tab)}
+          ></cockpit-overview>
         `;
       case "sessions":
         return html`
-          <dashboard-sessions
+          <cockpit-sessions
             .sessions=${this.sessions}
             .onOpenSession=${(id: string) => this._openSessionInChat(id)}
-          ></dashboard-sessions>
+          ></cockpit-sessions>
         `;
       case "projects":
         return html`
-          <dashboard-projects .projects=${this.projects}></dashboard-projects>
+          <cockpit-projects .projects=${this.projects}></cockpit-projects>
         `;
       case "chat":
-        return html`<dashboard-chat></dashboard-chat>`;
+        return html`<cockpit-chat></cockpit-chat>`;
       case "usage":
         return html`
-          <dashboard-overview
+          <cockpit-overview
             .stats=${this.overviewStats}
-            .onNavigate=${(tab: DashboardTab) => this._navigate(tab)}
-          ></dashboard-overview>
+            .onNavigate=${(tab: CockpitTab) => this._navigate(tab)}
+          ></cockpit-overview>
         `;
       default:
         return html`<p>Unknown tab</p>`;

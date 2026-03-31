@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Import the component to register the custom element
 import "../../ui/views/overview.ts";
-import type { DashboardOverview } from "../../ui/views/overview.ts";
+import type { CockpitOverview } from "../../ui/views/overview.ts";
 import type { OverviewStats } from "../../ui/types.ts";
 
 /** Wait for Lit's async render cycle to complete */
@@ -50,15 +50,15 @@ function makeStats(overrides: Partial<OverviewStats> = {}): OverviewStats {
   };
 }
 
-describe("dashboard-overview", () => {
+describe("cockpit-overview", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
 
   it("renders skeleton cards when stats is null", async () => {
     const el = document.createElement(
-      "dashboard-overview"
-    ) as DashboardOverview;
+      "cockpit-overview"
+    ) as CockpitOverview;
     el.stats = null;
     await renderEl(el);
 
@@ -72,8 +72,8 @@ describe("dashboard-overview", () => {
 
   it("renders four stat cards when stats are provided", async () => {
     const el = document.createElement(
-      "dashboard-overview"
-    ) as DashboardOverview;
+      "cockpit-overview"
+    ) as CockpitOverview;
     el.stats = makeStats();
     await renderEl(el);
 
@@ -92,8 +92,8 @@ describe("dashboard-overview", () => {
 
   it("displays correct values from stats", async () => {
     const el = document.createElement(
-      "dashboard-overview"
-    ) as DashboardOverview;
+      "cockpit-overview"
+    ) as CockpitOverview;
     el.stats = makeStats();
     await renderEl(el);
 
@@ -109,8 +109,8 @@ describe("dashboard-overview", () => {
 
   it("renders recent sessions list", async () => {
     const el = document.createElement(
-      "dashboard-overview"
-    ) as DashboardOverview;
+      "cockpit-overview"
+    ) as CockpitOverview;
     el.stats = makeStats();
     await renderEl(el);
 
@@ -126,8 +126,8 @@ describe("dashboard-overview", () => {
 
   it("hides recent sessions section when list is empty", async () => {
     const el = document.createElement(
-      "dashboard-overview"
-    ) as DashboardOverview;
+      "cockpit-overview"
+    ) as CockpitOverview;
     el.stats = makeStats({ recentSessions: [] });
     await renderEl(el);
 
@@ -137,8 +137,8 @@ describe("dashboard-overview", () => {
 
   it("calls onNavigate when a stat card is clicked", async () => {
     const el = document.createElement(
-      "dashboard-overview"
-    ) as DashboardOverview;
+      "cockpit-overview"
+    ) as CockpitOverview;
     el.stats = makeStats();
     const navigateSpy = vi.fn();
     el.onNavigate = navigateSpy;
@@ -154,8 +154,8 @@ describe("dashboard-overview", () => {
 
   it("formats large token counts with K/M suffixes", async () => {
     const el = document.createElement(
-      "dashboard-overview"
-    ) as DashboardOverview;
+      "cockpit-overview"
+    ) as CockpitOverview;
     el.stats = makeStats({
       totalInputTokens: 500_000,
       totalOutputTokens: 1_500_000,

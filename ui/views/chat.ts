@@ -73,8 +73,8 @@ function groupSessionsByDay(
   return Array.from(groups, ([label, sessions]) => ({ label, sessions }));
 }
 
-@customElement("dashboard-chat")
-export class DashboardChat extends LitElement {
+@customElement("cockpit-chat")
+export class CockpitChat extends LitElement {
   protected override createRenderRoot() {
     return this;
   }

@@ -1,6 +1,6 @@
 import { LitElement, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import type { OverviewStats, DashboardTab } from "../types.ts";
+import type { OverviewStats, CockpitTab } from "../types.ts";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -21,20 +21,20 @@ function formatRelativeTime(iso: string): string {
 
 type StatCard = {
   kind: string;
-  tab: DashboardTab;
+  tab: CockpitTab;
   label: string;
   value: string;
   hint: string;
 };
 
-@customElement("dashboard-overview")
-export class DashboardOverview extends LitElement {
+@customElement("cockpit-overview")
+export class CockpitOverview extends LitElement {
   protected override createRenderRoot() {
     return this;
   }
 
   @property({ type: Object }) stats: OverviewStats | null = null;
-  @property({ attribute: false }) onNavigate: (tab: DashboardTab) => void =
+  @property({ attribute: false }) onNavigate: (tab: CockpitTab) => void =
     () => {};
 
   override render() {

@@ -1,5 +1,5 @@
 /**
- * GatewayBrowserClient — WebSocket client for the dashboard.
+ * GatewayBrowserClient — WebSocket client for ClaudeCockpit.
  *
  * Adapted from OpenClaw's gateway.ts pattern:
  *   - Request/response matching via frame IDs

@@ -261,7 +261,7 @@ wss = new WebSocketServer({ server, path: "/ws" });
 wss.on("connection", handleWsConnection);
 
 server.listen(PORT, () => {
-  console.log(`Claude Code Dashboard gateway listening on :${PORT}`);
+  console.log(`ClaudeCockpit gateway listening on :${PORT}`);
   console.log(`  HTTP  /api/overview, /api/sessions, /api/projects, /api/health`);
   console.log(`  WS    ws://localhost:${PORT}/ws`);
   console.log(`  Methods: overview.get, sessions.list, projects.list, chat.send, chat.abort`);

@@ -129,7 +129,7 @@ body {
   }
 }
 
-dashboard-app {
+cockpit-app {
   display: block;
   position: relative;
   z-index: 1;
@@ -194,7 +194,7 @@ select {
   to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes dashboard-enter {
+@keyframes cockpit-enter {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }

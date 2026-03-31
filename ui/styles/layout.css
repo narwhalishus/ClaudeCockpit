@@ -15,7 +15,7 @@
     "nav topbar"
     "nav content";
   gap: 0;
-  animation: dashboard-enter 0.3s var(--ease-out);
+  animation: cockpit-enter 0.3s var(--ease-out);
   overflow: hidden;
 }
 

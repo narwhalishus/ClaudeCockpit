@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import "../../ui/views/chat.ts";
-import type { DashboardChat } from "../../ui/views/chat.ts";
+import type { CockpitChat } from "../../ui/views/chat.ts";
 
 /** Wait for Lit's async render cycle to complete */
 async function renderEl<T extends HTMLElement>(el: T): Promise<T> {
@@ -26,13 +26,13 @@ async function setProps(el: HTMLElement, props: Record<string, unknown>) {
   await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
 }
 
-describe("dashboard-chat markdown rendering", () => {
+describe("cockpit-chat markdown rendering", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
 
   it("renders assistant markdown as HTML with .markdown-body wrapper", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -55,7 +55,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("renders code blocks inside <pre><code>", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -77,7 +77,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("renders user messages as plain text without markdown-body", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -102,7 +102,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("renders lists as <ul>/<li>", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -124,7 +124,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("renders inline code with <code> tags", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -144,7 +144,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("shows cursor when streaming with no content yet", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -164,7 +164,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("shows cursor after markdown content while streaming", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -187,7 +187,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("renders ★ Insight blocks as styled callout cards", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     const insightMarkdown = [
@@ -224,7 +224,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("renders thinking block as collapsed <details> when present", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -253,7 +253,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("does not render thinking block when thinking is absent", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -272,7 +272,7 @@ describe("dashboard-chat markdown rendering", () => {
   });
 
   it("renders thinking block before the main content", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -304,13 +304,13 @@ describe("dashboard-chat markdown rendering", () => {
 // Session title display + rename
 // ---------------------------------------------------------------------------
 
-describe("dashboard-chat session titles", () => {
+describe("cockpit-chat session titles", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
 
   it("displays customTitle when available", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -341,7 +341,7 @@ describe("dashboard-chat session titles", () => {
   });
 
   it("falls back to firstPrompt when no customTitle", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -370,7 +370,7 @@ describe("dashboard-chat session titles", () => {
   });
 
   it("shows rename input on double-click", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
@@ -407,7 +407,7 @@ describe("dashboard-chat session titles", () => {
   });
 
   it("cancels rename on Escape", async () => {
-    const el = document.createElement("dashboard-chat") as DashboardChat;
+    const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {

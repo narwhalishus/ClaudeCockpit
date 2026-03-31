@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Personal session cockpit for Claude Code — browse sessions, resume conversations, stream live responses. Reads JSONL session files from `~/.claude/projects/`, aggregates stats, and provides a chat interface that spawns `claude -p` subprocesses. Built with Lit + Vite + TypeScript.
+**ClaudeCockpit** — personal session cockpit for Claude Code. Browse sessions, resume conversations, stream live responses. Reads JSONL session files from `~/.claude/projects/`, aggregates stats, and provides a chat interface that spawns `claude -p` subprocesses. Built with Lit + Vite + TypeScript.
 
 ## Design Principles
 
@@ -24,7 +24,7 @@ Personal session cockpit for Claude Code — browse sessions, resume conversatio
 
 ## Project Status
 
-- **Phase 1 (Static Dashboard)**: Complete — read-only views for overview, sessions, projects
+- **Phase 1 (Static Cockpit)**: Complete — read-only views for overview, sessions, projects
 - **Phase 2 (Gateway + Live Chat)**: Complete — WebSocket streaming, chat-as-session-cockpit, session resume
 - **Phase 2.5 (Chat Refinements)**: Next up — markdown rendering, tool approval modal, model selector, conversation summary, entrypoint badges
 - **Phase 3 (Usage Analytics)**: Planned — token breakdown by day/model/project, Bedrock cost tracking
@@ -58,7 +58,7 @@ Key services:
 
 Lit web components in **light DOM** (`createRenderRoot() { return this; }`). All styling via global CSS in `ui/styles/`. No Shadow DOM.
 
-- `ui/app.ts` — `<dashboard-app>` shell: sidebar nav, hash-based routing, dual WS+HTTP data fetching
+- `ui/app.ts` — `<cockpit-app>` shell: sidebar nav, hash-based routing, dual WS+HTTP data fetching
 - `ui/gateway.ts` — `GatewayBrowserClient`: request/response matching by frame ID, event subscriptions, exponential backoff reconnection
 - `ui/views/chat.ts` — **Session cockpit**: two-panel layout (session sidebar + conversation). Project switcher, sessions grouped by day, pinned sessions (localStorage), paginated message history, streaming display with cursor, inline collapsible agent/tool blocks
 - `ui/views/sessions.ts` — sortable/filterable data table, click row -> opens in chat

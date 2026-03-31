@@ -114,8 +114,8 @@ export interface SessionMessagesResult {
   hasMore: boolean;
 }
 
-/** Active tab in the dashboard */
-export type DashboardTab = "overview" | "sessions" | "projects" | "chat" | "usage";
+/** Active tab in the cockpit */
+export type CockpitTab = "overview" | "sessions" | "projects" | "chat" | "usage";
 
 /** Sort direction */
 export type SortDir = "asc" | "desc";

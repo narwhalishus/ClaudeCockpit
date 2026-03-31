@@ -1,6 +1,6 @@
 import { LitElement, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import type { SessionSummary, SortState, SortDir, DashboardTab } from "../types.ts";
+import type { SessionSummary, SortState, SortDir, CockpitTab } from "../types.ts";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -43,8 +43,8 @@ const COLUMNS: Column[] = [
   { key: "lastMessageAt", label: "Last Active", sortable: true },
 ];
 
-@customElement("dashboard-sessions")
-export class DashboardSessions extends LitElement {
+@customElement("cockpit-sessions")
+export class CockpitSessions extends LitElement {
   protected override createRenderRoot() {
     return this;
   }

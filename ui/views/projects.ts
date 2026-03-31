@@ -14,8 +14,8 @@ function formatRelativeTime(iso: string | null): string {
   return `${days}d ago`;
 }
 
-@customElement("dashboard-projects")
-export class DashboardProjects extends LitElement {
+@customElement("cockpit-projects")
+export class CockpitProjects extends LitElement {
   protected override createRenderRoot() {
     return this;
   }

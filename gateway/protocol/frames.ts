@@ -1,5 +1,5 @@
 /**
- * WebSocket frame protocol for the Claude Code Dashboard gateway.
+ * WebSocket frame protocol for the ClaudeCockpit gateway.
  *
  * Three frame types:
  *   req  — client → server request (expects a res back)
