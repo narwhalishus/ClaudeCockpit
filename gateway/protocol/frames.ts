@@ -48,7 +48,8 @@ export type RequestMethod =
   | "projects.list"
   | "sessions.rename"
   | "chat.send"
-  | "chat.abort";
+  | "chat.abort"
+  | "tool.respond";
 
 /** Parse a raw WebSocket message into a frame */
 export function parseFrame(raw: string): GatewayFrame | null {

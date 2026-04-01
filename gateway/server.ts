@@ -11,7 +11,7 @@ import {
   getSessionMessages,
   renameSession,
 } from "./services/session-store.ts";
-import { startChat, abortChat, generateTitle } from "./services/claude-cli.ts";
+import { startChat, abortChat, getProcess, generateTitle } from "./services/claude-cli.ts";
 import {
   parseFrame,
   serializeFrame,
@@ -83,6 +83,14 @@ async function handleHttp(req: IncomingMessage, res: ServerResponse) {
 // ─── WebSocket handler ─────────────────────────────────────────────────────
 
 let wss: WebSocketServer;
+
+/** Track which chatIds are associated with each WebSocket (for auto-deny on disconnect) */
+const wsChats = new Map<WebSocket, Set<string>>();
+
+function trackChat(ws: WebSocket, chatId: string) {
+  if (!wsChats.has(ws)) wsChats.set(ws, new Set());
+  wsChats.get(ws)!.add(chatId);
+}
 
 function send(ws: WebSocket, frame: GatewayFrame) {
   if (ws.readyState === ws.OPEN) {
@@ -157,7 +165,10 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
           model,
           sessionId,
           cwd,
+          interactive: true,
         });
+
+        trackChat(ws, chatId);
 
         // Track new session ID from result for title generation
         let newSessionId: string | null = null;
@@ -201,6 +212,10 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
           }
         });
 
+        proc.on("tool.approval", (data) => {
+          send(ws, event("tool.approval", { chatId, ...(data as Record<string, unknown>) }));
+        });
+
         // Acknowledge immediately that the chat started
         send(ws, event("chat.started", { chatId }));
         break;
@@ -214,6 +229,28 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
         }
         const aborted = abortChat(chatId);
         send(ws, okResponse(id, { chatId, aborted }));
+        break;
+      }
+
+      case "tool.respond": {
+        const chatId = p.chatId as string;
+        const requestId = p.requestId as string;
+        const behavior = p.behavior as "allow" | "deny";
+        const message = p.message as string | undefined;
+
+        if (!chatId || !requestId || !behavior) {
+          send(ws, errResponse(id, "INVALID_PARAMS", "chatId, requestId, and behavior are required"));
+          break;
+        }
+
+        const proc = getProcess(chatId);
+        if (!proc) {
+          send(ws, errResponse(id, "NOT_FOUND", "No active process for chatId"));
+          break;
+        }
+
+        const written = proc.writeControlResponse(requestId, behavior, message);
+        send(ws, okResponse(id, { chatId, requestId, written }));
         break;
       }
 
@@ -252,6 +289,21 @@ function handleWsConnection(ws: WebSocket) {
 
   ws.on("close", () => {
     console.log("WebSocket client disconnected");
+    // Auto-deny any pending tool approvals for this client's chats
+    const chatIds = wsChats.get(ws);
+    if (chatIds) {
+      for (const chatId of chatIds) {
+        const proc = getProcess(chatId);
+        if (proc?.pendingApproval) {
+          proc.writeControlResponse(
+            proc.pendingApproval.requestId,
+            "deny",
+            "WebSocket client disconnected"
+          );
+        }
+      }
+      wsChats.delete(ws);
+    }
   });
 }
 
