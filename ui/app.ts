@@ -39,6 +39,7 @@ export class CockpitApp extends LitElement {
   }
 
   @state() private tab: CockpitTab = "overview";
+  @state() private selectedProjectId = "";
   @state() private connected = false;
   @state() private loading = true;
   @state() private overviewStats: OverviewStats | null = null;
@@ -52,10 +53,9 @@ export class CockpitApp extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    const hash = window.location.hash.slice(1);
-    if (hash && NAV_ITEMS.some((n) => n.id === hash)) {
-      this.tab = hash as CockpitTab;
-    }
+    const { tab, projectId } = this._parseHash();
+    if (tab) this.tab = tab;
+    if (projectId) this.selectedProjectId = projectId;
     window.addEventListener("hashchange", this._onHashChange);
 
     // Connect WebSocket
@@ -78,18 +78,40 @@ export class CockpitApp extends LitElement {
   }
 
   private _onHashChange = () => {
-    const hash = window.location.hash.slice(1);
-    if (hash && NAV_ITEMS.some((n) => n.id === hash)) {
-      this.tab = hash as CockpitTab;
+    const { tab, projectId } = this._parseHash();
+    if (tab) this.tab = tab;
+    if (projectId !== this.selectedProjectId) {
+      this.selectedProjectId = projectId;
+      this._refetchData();
     }
   };
+
+  /** Parse "#tab/projectId" from the URL hash */
+  private _parseHash(): { tab: CockpitTab | null; projectId: string } {
+    const raw = window.location.hash.slice(1);
+    const [tabPart, ...rest] = raw.split("/");
+    const projectId = rest.join("/");
+    const tab = NAV_ITEMS.some((n) => n.id === tabPart)
+      ? (tabPart as CockpitTab)
+      : null;
+    return { tab, projectId: projectId ?? "" };
+  }
+
+  /** Write "#tab" or "#tab/projectId" to the URL hash */
+  private _syncHash() {
+    const hash = this.selectedProjectId
+      ? `${this.tab}/${this.selectedProjectId}`
+      : this.tab;
+    window.location.hash = hash;
+  }
 
   /** Fetch data via WebSocket (primary path) */
   private async _fetchViaWs() {
     try {
+      const projectParam = this.selectedProjectId || undefined;
       const [overview, sessionsData, projectsData] = await Promise.all([
-        this.gateway.request("overview.get"),
-        this.gateway.request("sessions.list"),
+        this.gateway.request("overview.get", { project: projectParam }),
+        this.gateway.request("sessions.list", { project: projectParam }),
         this.gateway.request("projects.list"),
       ]);
       this.overviewStats = overview as OverviewStats;
@@ -105,9 +127,12 @@ export class CockpitApp extends LitElement {
   private async _fetchViaHttp() {
     this.loading = true;
     try {
+      const projectQuery = this.selectedProjectId
+        ? `?project=${encodeURIComponent(this.selectedProjectId)}`
+        : "";
       const [overviewRes, sessionsRes, projectsRes] = await Promise.all([
-        fetch("/api/overview"),
-        fetch("/api/sessions"),
+        fetch(`/api/overview${projectQuery}`),
+        fetch(`/api/sessions${projectQuery}`),
         fetch("/api/projects"),
       ]);
       if (overviewRes.ok) this.overviewStats = await overviewRes.json();
@@ -130,12 +155,38 @@ export class CockpitApp extends LitElement {
 
   private _navigate(tab: CockpitTab) {
     this.tab = tab;
-    window.location.hash = tab;
+    this._syncHash();
   }
 
   private _openSessionInChat(sessionId: string) {
     this._pendingSessionId = sessionId;
     this._navigate("chat");
+  }
+
+  private _shortPath(path: string): string {
+    return path.replace(/^\/Users\/[^/]+/, "~");
+  }
+
+  private _onProjectChange(e: Event) {
+    this.selectedProjectId = (e.target as HTMLSelectElement).value;
+    this._syncHash();
+    this._refetchData();
+  }
+
+  /** Called when a project row is clicked in the Projects view */
+  private _selectProjectFromView(projectId: string) {
+    this.selectedProjectId = projectId;
+    this._navigate("overview");
+    this._refetchData();
+  }
+
+  /** Re-fetch overview + sessions for current project selection */
+  private _refetchData() {
+    if (this.gateway.connected) {
+      this._fetchViaWs();
+    } else {
+      this._fetchViaHttp();
+    }
   }
 
   override updated() {
@@ -159,6 +210,20 @@ export class CockpitApp extends LitElement {
           <div class="sidebar">
             <div class="sidebar__header">
               <img class="sidebar__logo" src="/logo.svg" alt="Claude Code" />
+            </div>
+            <div class="sidebar__project-selector">
+              <select
+                class="sidebar__project-select"
+                .value=${this.selectedProjectId}
+                @change=${this._onProjectChange}
+              >
+                <option value="">All Projects</option>
+                ${this.projects.map(
+                  (p) => html`
+                    <option value=${p.id}>${this._shortPath(p.path)}</option>
+                  `
+                )}
+              </select>
             </div>
             <div class="sidebar-nav">
               <div class="nav-section">
@@ -217,6 +282,7 @@ export class CockpitApp extends LitElement {
         return html`
           <cockpit-overview
             .stats=${this.overviewStats}
+            .projectId=${this.selectedProjectId}
             .onNavigate=${(tab: CockpitTab) => this._navigate(tab)}
           ></cockpit-overview>
         `;
@@ -224,19 +290,24 @@ export class CockpitApp extends LitElement {
         return html`
           <cockpit-sessions
             .sessions=${this.sessions}
+            .projectId=${this.selectedProjectId}
             .onOpenSession=${(id: string) => this._openSessionInChat(id)}
           ></cockpit-sessions>
         `;
       case "projects":
         return html`
-          <cockpit-projects .projects=${this.projects}></cockpit-projects>
+          <cockpit-projects
+            .projects=${this.projects}
+            .onSelectProject=${(projectId: string) => this._selectProjectFromView(projectId)}
+          ></cockpit-projects>
         `;
       case "chat":
-        return html`<cockpit-chat></cockpit-chat>`;
+        return html`<cockpit-chat .projectId=${this.selectedProjectId}></cockpit-chat>`;
       case "usage":
         return html`
           <cockpit-overview
             .stats=${this.overviewStats}
+            .projectId=${this.selectedProjectId}
             .onNavigate=${(tab: CockpitTab) => this._navigate(tab)}
           ></cockpit-overview>
         `;

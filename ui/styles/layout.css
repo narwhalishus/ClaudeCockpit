@@ -92,6 +92,30 @@
   flex-shrink: 0;
 }
 
+.sidebar__project-selector {
+  padding: 0 12px 8px;
+  flex-shrink: 0;
+}
+
+.sidebar__project-select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.sidebar__project-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 .sidebar-nav {
   flex: 1;
   overflow-y: auto;
