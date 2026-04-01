@@ -495,7 +495,9 @@
   gap: 6px;
 }
 
-.chat__load-more {
+.chat__load-more,
+.chat__conversation > .empty-state,
+.chat__conversation > .loading-spinner {
   align-self: center;
   font-size: 11px;
   padding: 4px 12px;
