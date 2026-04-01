@@ -69,7 +69,7 @@ export class CockpitOverview extends LitElement {
       },
       {
         kind: "projects",
-        tab: "projects",
+        tab: "overview",
         label: "Projects",
         value: String(s.totalProjects),
         hint: "Unique codebases",

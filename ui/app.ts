@@ -8,14 +8,12 @@ import type {
 } from "./types.ts";
 import { GatewayBrowserClient } from "./gateway.ts";
 import "./views/overview.ts";
-import "./views/projects.ts";
 import "./views/chat.ts";
 import type { CockpitChat } from "./views/chat.ts";
 
 // SVG icon helpers
 const icons = {
   overview: html`<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
-  projects: html`<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
   usage: html`<svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>`,
   chat: html`<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`,
 };
@@ -24,7 +22,6 @@ type NavItem = { id: CockpitTab; label: string; icon: typeof icons.overview };
 
 const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", icon: icons.overview },
-  { id: "projects", label: "Projects", icon: icons.projects },
   { id: "chat", label: "Chat", icon: icons.chat },
   { id: "usage", label: "Usage", icon: icons.usage },
 ];
@@ -162,13 +159,6 @@ export class CockpitApp extends LitElement {
     this._refetchData();
   }
 
-  /** Called when a project row is clicked in the Projects view */
-  private _selectProjectFromView(projectId: string) {
-    this.selectedProjectId = projectId;
-    this._navigate("overview");
-    this._refetchData();
-  }
-
   /** Re-fetch overview + sessions for current project selection */
   private _refetchData() {
     if (this.gateway.connected) {
@@ -283,13 +273,6 @@ export class CockpitApp extends LitElement {
             .projectId=${this.selectedProjectId}
             .onNavigate=${(tab: CockpitTab) => this._navigate(tab)}
           ></cockpit-overview>
-        `;
-      case "projects":
-        return html`
-          <cockpit-projects
-            .projects=${this.projects}
-            .onSelectProject=${(projectId: string) => this._selectProjectFromView(projectId)}
-          ></cockpit-projects>
         `;
       case "chat":
         return html`<cockpit-chat .projectId=${this.selectedProjectId}></cockpit-chat>`;

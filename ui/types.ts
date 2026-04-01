@@ -129,5 +129,5 @@ export interface ToolApprovalEvent {
 }
 
 /** Active tab in the cockpit */
-export type CockpitTab = "overview" | "projects" | "chat" | "usage";
+export type CockpitTab = "overview" | "chat" | "usage";
 
