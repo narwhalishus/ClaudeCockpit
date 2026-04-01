@@ -138,7 +138,7 @@ export class CockpitChat extends LitElement {
     this.unsubscribers = [];
   }
 
-  override updated(changed: Map<string, unknown>) {
+  override willUpdate(changed: Map<string, unknown>) {
     if (changed.has("projectId") && this.gateway) {
       this._newSession();
       this._loadSessionList();

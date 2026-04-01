@@ -218,6 +218,11 @@ export class ClaudeProcess extends EventEmitter {
         content: data.result as string | undefined,
         raw: data,
       } satisfies ChatChunk);
+      // In interactive mode, close stdin after result so the process exits.
+      // Tool approvals happen before result, so nothing more to send.
+      if (this.request.interactive && this.proc?.stdin && !this.proc.stdin.destroyed) {
+        this.proc.stdin.end();
+      }
       return;
     }
 
