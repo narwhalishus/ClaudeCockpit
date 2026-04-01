@@ -20,6 +20,8 @@ export interface ChatRequest {
   cwd?: string;
   /** Skip session persistence (no JSONL file created) */
   noSession?: boolean;
+  /** Enable bidirectional control protocol (--input-format stream-json) */
+  interactive?: boolean;
 }
 
 export interface ChatChunk {
@@ -40,9 +42,15 @@ export interface ChatChunk {
 export class ClaudeProcess extends EventEmitter {
   private proc: ChildProcess | null = null;
   private buffer = "";
+  private _pendingApproval: { requestId: string; request: unknown } | null = null;
 
   constructor(private request: ChatRequest) {
     super();
+  }
+
+  /** Current pending tool approval request, if any */
+  get pendingApproval() {
+    return this._pendingApproval;
   }
 
   start(): void {
@@ -84,10 +92,20 @@ export class ClaudeProcess extends EventEmitter {
       this.emit("error", err);
     });
 
-    // Write prompt via stdin (avoids ARG_MAX limits for large prompts)
+    // Write prompt via stdin
     if (this.proc.stdin) {
-      this.proc.stdin.write(this.request.prompt);
-      this.proc.stdin.end();
+      if (this.request.interactive) {
+        // Structured JSON message — stdin stays open for control responses
+        const msg = JSON.stringify({
+          type: "user",
+          message: { role: "user", content: this.request.prompt },
+        });
+        this.proc.stdin.write(msg + "\n");
+      } else {
+        // Raw text prompt — close stdin after writing
+        this.proc.stdin.write(this.request.prompt);
+        this.proc.stdin.end();
+      }
     }
   }
 
@@ -103,8 +121,40 @@ export class ClaudeProcess extends EventEmitter {
     }
   }
 
-  private buildArgs(): string[] {
+  /** Send a control_response to approve or deny a tool use request */
+  writeControlResponse(
+    requestId: string,
+    behavior: "allow" | "deny",
+    message?: string
+  ): boolean {
+    if (!this.proc?.stdin || this.proc.stdin.destroyed) return false;
+
+    const response: Record<string, unknown> = { behavior };
+    if (behavior === "allow") {
+      response.updatedInput = {};
+    } else {
+      response.message = message ?? "User denied tool use";
+    }
+
+    const frame = JSON.stringify({
+      type: "control_response",
+      response: {
+        subtype: "success",
+        request_id: requestId,
+        response,
+      },
+    });
+    this.proc.stdin.write(frame + "\n");
+    this._pendingApproval = null;
+    return true;
+  }
+
+  buildArgs(): string[] {
     const args = ["-p", "--output-format", "stream-json", "--verbose"];
+
+    if (this.request.interactive) {
+      args.push("--input-format", "stream-json", "--permission-mode", "default");
+    }
 
     if (this.request.noSession) {
       args.push("--no-session-persistence");
@@ -149,8 +199,17 @@ export class ClaudeProcess extends EventEmitter {
   }
 
   /** Route a parsed NDJSON line to the appropriate event */
-  private handleParsedLine(data: Record<string, unknown>): void {
+  handleParsedLine(data: Record<string, unknown>): void {
     const type = data.type as string;
+
+    if (type === "control_request") {
+      this._pendingApproval = {
+        requestId: data.request_id as string,
+        request: data.request,
+      };
+      this.emit("tool.approval", data);
+      return;
+    }
 
     if (type === "result") {
       this.emit("result", data);
@@ -237,6 +296,11 @@ export function startChat(
 
   proc.start();
   return proc;
+}
+
+/** Get a running chat process by ID */
+export function getProcess(chatId: string): ClaudeProcess | undefined {
+  return activeProcesses.get(chatId);
 }
 
 /** Abort a running chat process */
