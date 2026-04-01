@@ -1,5 +1,5 @@
 import { LitElement, html, nothing } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { Marked } from "marked";
 import type {
@@ -7,7 +7,6 @@ import type {
 } from "../gateway.ts";
 import type {
   SessionSummary,
-  Project,
   ChatMessage,
   SessionMessagesResult,
   AgentBlock,
@@ -79,9 +78,9 @@ export class CockpitChat extends LitElement {
     return this;
   }
 
+  @property({ type: String }) projectId = "";
+
   @state() private sessions: SessionSummary[] = [];
-  @state() private projects: Project[] = [];
-  @state() private selectedProjectId = "";
   @state() private activeSessionId: string | null = null;
   @state() private messages: ChatMessage[] = [];
   @state() private inputValue = "";
@@ -128,6 +127,13 @@ export class CockpitChat extends LitElement {
     this.unsubscribers = [];
   }
 
+  override updated(changed: Map<string, unknown>) {
+    if (changed.has("projectId") && this.gateway) {
+      this._newSession();
+      this._loadSessionList();
+    }
+  }
+
   /** Public API: open a specific session (called by app shell) */
   openSession(sessionId: string) {
     this._selectSession(sessionId);
@@ -138,14 +144,10 @@ export class CockpitChat extends LitElement {
   private async _loadSessionList() {
     if (!this.gateway?.connected) return;
     try {
-      const [sessData, projData] = await Promise.all([
-        this.gateway.request("sessions.list", {
-          project: this.selectedProjectId || undefined,
-        }),
-        this.gateway.request("projects.list"),
-      ]);
-      this.sessions = (sessData as { sessions: SessionSummary[] }).sessions;
-      this.projects = (projData as { projects: Project[] }).projects;
+      const result = await this.gateway.request("sessions.list", {
+        project: this.projectId || undefined,
+      });
+      this.sessions = (result as { sessions: SessionSummary[] }).sessions;
     } catch (err) {
       console.error("Failed to load sessions:", err);
     }
@@ -157,7 +159,7 @@ export class CockpitChat extends LitElement {
     try {
       const result = (await this.gateway.request("sessions.messages", {
         sessionId,
-        projectId: this.selectedProjectId || undefined,
+        projectId: this.projectId || undefined,
         limit: 50,
       })) as SessionMessagesResult;
       this.messages = result.messages;
@@ -184,14 +186,14 @@ export class CockpitChat extends LitElement {
       // First, get total count so we can calculate the right offset
       const peek = (await this.gateway.request("sessions.messages", {
         sessionId: this.activeSessionId,
-        projectId: this.selectedProjectId || undefined,
+        projectId: this.projectId || undefined,
         limit: 1,
       })) as SessionMessagesResult;
       const beforeIdx = peek.total - this.messages.length;
 
       const result = (await this.gateway.request("sessions.messages", {
         sessionId: this.activeSessionId,
-        projectId: this.selectedProjectId || undefined,
+        projectId: this.projectId || undefined,
         limit: 30,
         beforeIndex: beforeIdx,
       })) as SessionMessagesResult;
@@ -251,7 +253,7 @@ export class CockpitChat extends LitElement {
     await this.gateway.request("sessions.rename", {
       sessionId,
       title: trimmed,
-      projectId: this.selectedProjectId || undefined,
+      projectId: this.projectId || undefined,
     });
   }
 
@@ -261,17 +263,6 @@ export class CockpitChat extends LitElement {
       this._commitRename(sessionId, (e.target as HTMLInputElement).value);
     } else if (e.key === "Escape") {
       this.renamingSessionId = null;
-    }
-  }
-
-  private async _onProjectChange(e: Event) {
-    this.selectedProjectId = (e.target as HTMLSelectElement).value;
-    this._newSession();
-    if (this.gateway?.connected) {
-      const result = await this.gateway.request("sessions.list", {
-        project: this.selectedProjectId || undefined,
-      });
-      this.sessions = (result as { sessions: SessionSummary[] }).sessions;
     }
   }
 
@@ -405,10 +396,6 @@ export class CockpitChat extends LitElement {
     `;
   }
 
-  private _shortPath(path: string): string {
-    return path.replace(/^\/Users\/[^/]+/, "~");
-  }
-
   private _renderSidebar() {
     const pinned = this.sessions.filter((s) =>
       this.pinnedSessionIds.has(s.sessionId)
@@ -421,20 +408,8 @@ export class CockpitChat extends LitElement {
     return html`
       <aside class="chat__sidebar">
         <div class="chat__sidebar-header">
-          <select
-            class="chat__project-select"
-            .value=${this.selectedProjectId}
-            @change=${this._onProjectChange}
-          >
-            <option value="">All Projects</option>
-            ${this.projects.map(
-              (p) => html`
-                <option value=${p.id}>${this._shortPath(p.path)}</option>
-              `
-            )}
-          </select>
           <button class="btn btn--primary chat__new-btn" @click=${this._newSession}>
-            + New
+            + New Session
           </button>
         </div>
 

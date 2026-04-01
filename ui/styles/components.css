@@ -355,19 +355,6 @@
   flex-shrink: 0;
 }
 
-.chat__project-select {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  color: var(--text);
-  font-size: 12px;
-  font-family: var(--mono);
-  cursor: pointer;
-}
-
 .chat__new-btn {
   flex-shrink: 0;
   padding: 6px 10px;
