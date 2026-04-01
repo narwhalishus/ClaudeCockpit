@@ -34,6 +34,7 @@ export class CockpitOverview extends LitElement {
   }
 
   @property({ type: Object }) stats: OverviewStats | null = null;
+  @property({ type: String }) projectId = "";
   @property({ attribute: false }) onNavigate: (tab: CockpitTab) => void =
     () => {};
 
@@ -95,7 +96,9 @@ export class CockpitOverview extends LitElement {
       <div class="content-header">
         <div>
           <h1 class="page-title">Overview</h1>
-          <p class="page-sub">Your Claude Code activity at a glance</p>
+          <p class="page-sub">${this.projectId
+            ? `Activity for ${this._shortPath(this.projectId)}`
+            : "Your Claude Code activity at a glance"}</p>
         </div>
       </div>
 
@@ -132,5 +135,9 @@ export class CockpitOverview extends LitElement {
           `
         : nothing}
     `;
+  }
+
+  private _shortPath(encoded: string): string {
+    return encoded.replace(/-/g, "/").replace(/^\/Users\/[^/]+/, "~");
   }
 }

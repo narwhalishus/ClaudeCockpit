@@ -50,6 +50,7 @@ export class CockpitSessions extends LitElement {
   }
 
   @property({ type: Array }) sessions: SessionSummary[] = [];
+  @property({ type: String }) projectId = "";
   @property({ attribute: false }) onOpenSession: (sessionId: string) => void = () => {};
   @state() private sort: SortState = { column: "lastMessageAt", dir: "desc" };
   @state() private filter = "";
@@ -103,7 +104,9 @@ export class CockpitSessions extends LitElement {
       <div class="content-header">
         <div>
           <h1 class="page-title">Sessions</h1>
-          <p class="page-sub">${this.sessions.length} total sessions across all projects</p>
+          <p class="page-sub">${this.projectId
+            ? `${this.sessions.length} sessions in ${this._shortProjectPath(this.projectId.replace(/-/g, "/"))}`
+            : `${this.sessions.length} total sessions across all projects`}</p>
         </div>
       </div>
 

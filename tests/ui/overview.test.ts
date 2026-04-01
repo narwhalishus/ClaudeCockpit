@@ -152,6 +152,29 @@ describe("cockpit-overview", () => {
     expect(navigateSpy).toHaveBeenCalledWith("sessions");
   });
 
+  it("shows project-scoped subtitle when projectId is set", async () => {
+    const el = document.createElement(
+      "cockpit-overview"
+    ) as CockpitOverview;
+    el.stats = makeStats();
+    el.projectId = "-Users-bryao-Code-Foo";
+    await renderEl(el);
+
+    const sub = el.querySelector(".page-sub");
+    expect(sub?.textContent).toContain("Activity for ~/Code/Foo");
+  });
+
+  it("shows default subtitle when projectId is empty", async () => {
+    const el = document.createElement(
+      "cockpit-overview"
+    ) as CockpitOverview;
+    el.stats = makeStats();
+    await renderEl(el);
+
+    const sub = el.querySelector(".page-sub");
+    expect(sub?.textContent).toContain("activity at a glance");
+  });
+
   it("formats large token counts with K/M suffixes", async () => {
     const el = document.createElement(
       "cockpit-overview"

@@ -21,6 +21,7 @@ export class CockpitProjects extends LitElement {
   }
 
   @property({ type: Array }) projects: Project[] = [];
+  @property({ attribute: false }) onSelectProject: (projectId: string) => void = () => {};
 
   override render() {
     return html`
@@ -51,7 +52,7 @@ export class CockpitProjects extends LitElement {
               <tbody>
                 ${this.projects.map(
                   (p) => html`
-                    <tr>
+                    <tr style="cursor:pointer" @click=${() => this.onSelectProject(p.id)}>
                       <td class="mono">${this._shortPath(p.path)}</td>
                       <td>${p.sessionCount}</td>
                       <td class="muted">${formatRelativeTime(p.lastActive)}</td>
