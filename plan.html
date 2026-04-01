@@ -265,10 +265,10 @@
     </div>
     <p class="phase__desc">Polish the session cockpit experience.</p>
     <ul class="checklist">
-      <li><span class="check check--todo"></span> Tool approval modal (permission mode aware)</li>
+      <li><span class="check check--done">&#10003;</span> Tool approval banner — bidirectional control protocol via <code>--input-format stream-json</code>. Gateway detects <code>control_request</code>, forwards as WS event. Chat view renders inline banner with tool name, input details (Bash command, Edit diff, file paths), approve/deny buttons + <kbd>Y</kbd>/<kbd>N</kbd> shortcuts. <code>tool.respond</code> WS method writes <code>control_response</code> back to CLI stdin. Auto-deny on WS disconnect.</li>
       <li><span class="check check--todo"></span> Model selector in chat input area</li>
       <li><span class="check check--todo"></span> Conversation summary side panel (spawn summarization agent)</li>
-      <li><span class="check check--todo"></span> Entrypoint badges on sessions (cli vs claude-vscode)</li>
+      <li><del style="color:var(--muted)">Entrypoint badges — dropped, project scoping makes origin less useful</del></li>
       <li><span class="check check--todo"></span> Structured user message rendering — parse <code>&lt;bash-input&gt;</code>, <code>&lt;bash-stdout&gt;</code>, <code>&lt;bash-stderr&gt;</code>, <code>&lt;local-command-caveat&gt;</code>, <code>&lt;system-reminder&gt;</code>, <code>&lt;command-name&gt;</code> tags into styled blocks (terminal cards, dimmed annotations, hidden system tags). Design note: use <code>&lt;local-command-caveat&gt;</code> presence as sentinel to gate tag parsing — avoids misrendering user-typed tags as structured content (in-band signaling ambiguity)</li>
       <li><span class="check check--done">&#10003;</span> Markdown rendering in assistant messages (<code>marked</code> + <code>unsafeHTML</code>, styled <code>.markdown-body</code>)</li>
       <li><span class="check check--done">&#10003;</span> Collapsible thinking blocks — extended thinking shown in collapsed <code>&lt;details&gt;</code> above response</li>
@@ -276,6 +276,7 @@
       <li><span class="check check--done">&#10003;</span> Session titles — parse <code>custom-title</code> from JSONL, inline rename (double-click), <code>sessions.rename</code> WS method</li>
       <li><span class="check check--done">&#10003;</span> Auto-generate session titles — LLM title generation after first exchange, <code>session.titled</code> event for live UI update</li>
       <li><span class="check check--done">&#10003;</span> Global project selector — lifted from chat to app shell sidebar. URL routing <code>#tab/projectId</code>. All views scope to selected project. Project-scoped gateway API (<code>overview.get</code>, <code>sessions.list</code>). Projects view rows clickable to select.</li>
+      <li><span class="check check--todo"></span> Session detail sidebar — replace Sessions tab with a right-hand panel in chat view showing session metadata (tokens, model, duration, cache stats) when a session is selected. Chat sidebar already serves as the session browser; a dedicated Sessions page is redundant.</li>
     </ul>
   </div>
 
@@ -310,11 +311,6 @@
     <div class="feat">
       <div class="feat__name">Markdown Rendering</div>
       <div class="feat__desc">Render assistant messages as Markdown (code blocks, headings, lists, bold/italic).</div>
-      <span class="feat__tag tag--idea">Phase 2.5</span>
-    </div>
-    <div class="feat">
-      <div class="feat__name">Entrypoint Badges</div>
-      <div class="feat__desc">Show cli/vscode badge on session items so you know where work originated.</div>
       <span class="feat__tag tag--idea">Phase 2.5</span>
     </div>
     <div class="feat">
@@ -402,11 +398,11 @@
 npm run dev          # Start both UI (:5173) and gateway (:18800)
 npm run dev:ui       # Vite dev server only
 npm run dev:gateway  # Gateway server only
-npm test             # Run all 61 tests
+npm test             # Run all 77 tests
 npm run test:watch   # Tests in watch mode
 npm run build        # Production build → dist/</pre>
 
-  <p class="updated">Last updated: 2026-03-31 — Phase 1 + Phase 2 complete, Phase 2.5 in progress, 61 tests passing</p>
+  <p class="updated">Last updated: 2026-03-31 — Phase 1 + Phase 2 complete, Phase 2.5 in progress, 77 tests passing</p>
 
 </div>
 </body>

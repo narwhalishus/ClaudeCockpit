@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — starts both Vite dev server (:5173) and gateway server (:18800) concurrently
 - `npm run dev:ui` — Vite frontend only
 - `npm run dev:gateway` — gateway server only (uses `tsx watch`)
-- `npm test` — run all tests (`vitest run`, 61 tests)
+- `npm test` — run all tests (`vitest run`, 77 tests)
 - `npm run test:watch` — tests in watch mode
 - `npx vitest run tests/gateway/session-store.test.ts` — run a single test file
 - `npm run build` — production build to `dist/`
@@ -48,11 +48,11 @@ Node.js HTTP + WebSocket server on port 18800.
 
 - **HTTP**: `/api/overview`, `/api/sessions`, `/api/projects`, `/api/health` — overview and sessions accept `?project=<id>` for project-scoped results
 - **WebSocket**: `/ws` — custom frame protocol (`gateway/protocol/frames.ts`) with three frame types: `req` (client->server), `res` (server->client response), `event` (server->client push)
-- WS methods: `overview.get` (accepts `project`), `sessions.list` (accepts `project`), `projects.list`, `sessions.messages`, `sessions.rename`, `chat.send`, `chat.abort`
+- WS methods: `overview.get` (accepts `project`), `sessions.list` (accepts `project`), `projects.list`, `sessions.messages`, `sessions.rename`, `chat.send`, `chat.abort`, `tool.respond`
 
 Key services:
 - `gateway/services/session-store.ts` — JSONL parser + data aggregation. `convertToMessages()` is the most complex function: collapses streaming assistant chunks (same msg ID), matches `tool_result` blocks back to parent assistant message's tool/agent blocks via `tool_use_id`.
-- `gateway/services/claude-cli.ts` — spawns `claude -p --output-format stream-json --verbose`, streams NDJSON as events. Prompt written via stdin (not args) to avoid ARG_MAX limits. Resume uses `claude -r <session-id>`.
+- `gateway/services/claude-cli.ts` — spawns `claude -p --output-format stream-json --verbose`, streams NDJSON as events. Interactive mode adds `--input-format stream-json --permission-mode default` for bidirectional control protocol (tool approval via `control_request`/`control_response`). Prompt written via stdin as JSON. Resume uses `claude -r <session-id>`.
 
 ### Frontend (`ui/`)
 
