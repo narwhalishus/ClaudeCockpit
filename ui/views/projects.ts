@@ -25,13 +25,6 @@ export class CockpitProjects extends LitElement {
 
   override render() {
     return html`
-      <div class="content-header">
-        <div>
-          <h1 class="page-title">Projects</h1>
-          <p class="page-sub">${this.projects.length} projects with Claude Code sessions</p>
-        </div>
-      </div>
-
       ${this.projects.length === 0
         ? html`
             <div class="empty-state">

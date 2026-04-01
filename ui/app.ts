@@ -214,13 +214,12 @@ export class CockpitApp extends LitElement {
             <div class="sidebar__project-selector">
               <select
                 class="sidebar__project-select"
-                .value=${this.selectedProjectId}
                 @change=${this._onProjectChange}
               >
-                <option value="">All Projects</option>
+                <option value="" ?selected=${!this.selectedProjectId}>All Projects</option>
                 ${this.projects.map(
                   (p) => html`
-                    <option value=${p.id}>${this._shortPath(p.path)}</option>
+                    <option value=${p.id} ?selected=${p.id === this.selectedProjectId}>${this._shortPath(p.path)}</option>
                   `
                 )}
               </select>

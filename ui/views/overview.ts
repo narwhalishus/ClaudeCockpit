@@ -93,15 +93,6 @@ export class CockpitOverview extends LitElement {
     const recent = s.recentSessions.slice(0, 8);
 
     return html`
-      <div class="content-header">
-        <div>
-          <h1 class="page-title">Overview</h1>
-          <p class="page-sub">${this.projectId
-            ? `Activity for ${this._shortPath(this.projectId)}`
-            : "Your Claude Code activity at a glance"}</p>
-        </div>
-      </div>
-
       <section class="ov-cards">
         ${cards.map(
           (c) => html`
@@ -137,7 +128,4 @@ export class CockpitOverview extends LitElement {
     `;
   }
 
-  private _shortPath(encoded: string): string {
-    return encoded.replace(/-/g, "/").replace(/^\/Users\/[^/]+/, "~");
-  }
 }

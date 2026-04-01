@@ -101,15 +101,6 @@ export class CockpitSessions extends LitElement {
     const rows = this._filteredSessions;
 
     return html`
-      <div class="content-header">
-        <div>
-          <h1 class="page-title">Sessions</h1>
-          <p class="page-sub">${this.projectId
-            ? `${this.sessions.length} sessions in ${this._shortProjectPath(this.projectId.replace(/-/g, "/"))}`
-            : `${this.sessions.length} total sessions across all projects`}</p>
-        </div>
-      </div>
-
       <div class="filters">
         <input
           class="btn"
