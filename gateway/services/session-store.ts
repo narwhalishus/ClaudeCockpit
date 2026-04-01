@@ -12,6 +12,11 @@ import type {
   ToolBlock,
   SessionMessagesResult,
 } from "../types.ts";
+import {
+  TOOL_RESULT_TRUNCATE_CHARS,
+  TRANSCRIPT_MAX_CHARS,
+  AGENT_PROMPT_PREVIEW_CHARS,
+} from "../constants.ts";
 
 const CLAUDE_DIR = join(homedir(), ".claude");
 const PROJECTS_DIR = join(CLAUDE_DIR, "projects");
@@ -322,14 +327,62 @@ async function findSessionFile(
   return null;
 }
 
+/** Extract text, thinking, agent, and tool blocks from a content block array. */
+interface ExtractedBlocks {
+  text: string;
+  thinking: string;
+  agents: AgentBlock[];
+  tools: ToolBlock[];
+}
+
+function extractBlocks(content: RawContentBlock[]): ExtractedBlocks {
+  let text = "";
+  let thinking = "";
+  const agents: AgentBlock[] = [];
+  const tools: ToolBlock[] = [];
+
+  for (const block of content) {
+    if (block.type === "text" && block.text) {
+      text += block.text;
+    } else if (block.type === "thinking" && block.thinking) {
+      thinking += block.thinking;
+    } else if (block.type === "tool_use" && block.name && block.id) {
+      if (block.name === "Agent") {
+        const input = block.input as Record<string, string> | undefined;
+        agents.push({
+          toolUseId: block.id,
+          description: input?.description ?? "",
+          subagentType: input?.subagent_type ?? "",
+          prompt: (input?.prompt ?? "").slice(0, AGENT_PROMPT_PREVIEW_CHARS),
+        });
+      } else {
+        tools.push({
+          toolUseId: block.id,
+          name: block.name,
+          input: block.input,
+        });
+      }
+    }
+  }
+
+  return { text, thinking, agents, tools };
+}
+
 /**
  * Convert raw JSONL lines into ChatMessage objects for the UI.
  *
- * Collapses streaming assistant chunks (same message ID) into single messages.
- * Attaches Agent and tool blocks to their parent assistant message.
- * Filters out sidechains, snapshots, system lines, etc.
+ * Algorithm:
+ * 1. Iterate lines, skipping sidechains and lines without timestamps.
+ * 2. For user lines: attach tool_result blocks to parent assistant's
+ *    tool/agent blocks (via tool_use_id); extract real text as user messages.
+ * 3. For assistant lines: if msg.id was already seen, merge as streaming chunk
+ *    (dedup text via endsWith guard, concat thinking, add new tool_use blocks).
+ *    Otherwise, create a new message via extractBlocks().
+ * 4. Track pending tool_use_ids in maps so step 2 can attach results later.
+ * 5. Consolidation pass: merge tool-only assistant messages into the preceding
+ *    assistant bubble to reduce visual noise from rapid tool-call round-trips.
  */
-function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
+export function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
   // Map tool_use_id → pending agent/tool block (to attach results later)
   const pendingAgents = new Map<string, { msgIdx: number; agentIdx: number }>();
@@ -361,7 +414,7 @@ function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
                     ? block.content
                     : JSON.stringify(block.content);
                 msg.agents[agentRef.agentIdx].result =
-                  resultText.slice(0, 500);
+                  resultText.slice(0, TOOL_RESULT_TRUNCATE_CHARS);
               }
               pendingAgents.delete(block.tool_use_id);
               continue;
@@ -375,7 +428,7 @@ function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
                   typeof block.content === "string"
                     ? block.content
                     : JSON.stringify(block.content);
-                msg.tools[toolRef.toolIdx].result = resultText.slice(0, 500);
+                msg.tools[toolRef.toolIdx].result = resultText.slice(0, TOOL_RESULT_TRUNCATE_CHARS);
               }
               pendingTools.delete(block.tool_use_id);
               continue;
@@ -447,7 +500,7 @@ function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
                   toolUseId: block.id,
                   description: input?.description ?? "",
                   subagentType: input?.subagent_type ?? "",
-                  prompt: (input?.prompt ?? "").slice(0, 200),
+                  prompt: (input?.prompt ?? "").slice(0, AGENT_PROMPT_PREVIEW_CHARS),
                 });
                 pendingAgents.set(block.id, {
                   msgIdx: existingIdx,
@@ -474,42 +527,14 @@ function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
         continue;
       }
 
-      // New assistant message
-      let textContent = "";
-      let thinkingContent = "";
-      const agents: AgentBlock[] = [];
-      const tools: ToolBlock[] = [];
-
+      // New assistant message — extract all content blocks
       const content = msg.content;
-      if (typeof content === "string") {
-        textContent = content;
-      } else if (Array.isArray(content)) {
-        for (const block of content as RawContentBlock[]) {
-          if (block.type === "text" && block.text) {
-            textContent += block.text;
-          }
-          if (block.type === "thinking" && block.thinking) {
-            thinkingContent += block.thinking;
-          }
-          if (block.type === "tool_use" && block.name && block.id) {
-            if (block.name === "Agent") {
-              const input = block.input as Record<string, string> | undefined;
-              agents.push({
-                toolUseId: block.id,
-                description: input?.description ?? "",
-                subagentType: input?.subagent_type ?? "",
-                prompt: (input?.prompt ?? "").slice(0, 200),
-              });
-            } else {
-              tools.push({
-                toolUseId: block.id,
-                name: block.name,
-                input: block.input,
-              });
-            }
-          }
-        }
-      }
+      const { text: textContent, thinking: thinkingContent, agents, tools } =
+        typeof content === "string"
+          ? { text: content, thinking: "", agents: [] as AgentBlock[], tools: [] as ToolBlock[] }
+          : Array.isArray(content)
+            ? extractBlocks(content as RawContentBlock[])
+            : { text: "", thinking: "", agents: [] as AgentBlock[], tools: [] as ToolBlock[] };
 
       const newMsg: ChatMessage = {
         uuid: line.uuid ?? "",
@@ -557,15 +582,13 @@ export function consolidateMessages(messages: ChatMessage[]): ChatMessage[] {
       (msg.tools?.length || msg.agents?.length);
 
     if (isToolOnly && prev?.role === "assistant") {
-      // Merge tools/agents into the previous assistant message
-      if (msg.agents) {
-        prev.agents = [...(prev.agents ?? []), ...msg.agents];
-      }
-      if (msg.tools) {
-        prev.tools = [...(prev.tools ?? []), ...msg.tools];
-      }
-      // Keep the latest timestamp
-      prev.timestamp = msg.timestamp;
+      // Merge tools/agents into a new object (no in-place mutation)
+      result[result.length - 1] = {
+        ...prev,
+        agents: [...(prev.agents ?? []), ...(msg.agents ?? [])],
+        tools: [...(prev.tools ?? []), ...(msg.tools ?? [])],
+        timestamp: msg.timestamp,
+      };
     } else {
       result.push({ ...msg });
     }
@@ -602,6 +625,71 @@ export async function getSessionMessages(
     total,
     hasMore: startIdx > 0,
   };
+}
+
+/**
+ * Format ChatMessage[] into a compact text transcript for summarization.
+ *
+ * Builds backwards from the most recent message so the 12K budget
+ * captures the latest activity — the part you actually need to catch up on.
+ *
+ * User messages: up to 500 chars each.
+ * Assistant messages: up to 300 chars with tool/agent names appended.
+ * Total output capped at maxChars.
+ */
+export function buildTranscript(
+  messages: ChatMessage[],
+  maxChars = TRANSCRIPT_MAX_CHARS
+): string | null {
+  const lines: string[] = [];
+  let totalLen = 0;
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    const role = msg.role === "user" ? "User" : "Assistant";
+    let line: string;
+
+    if (msg.role === "user") {
+      line = msg.content.trim().slice(0, 500);
+    } else {
+      line = msg.content.trim().slice(0, 300);
+      const toolNames = [
+        ...(msg.agents?.map(
+          (a) => `Agent(${a.subagentType || a.description.slice(0, 20)})`
+        ) ?? []),
+        ...(msg.tools?.map((t) => t.name) ?? []),
+      ];
+      if (toolNames.length) {
+        line += ` [tools: ${toolNames.join(", ")}]`;
+      }
+    }
+
+    const formatted = `[${role}] ${line}\n\n`;
+    if (totalLen + formatted.length > maxChars) {
+      lines.push("[...earlier messages omitted...]\n\n");
+      break;
+    }
+
+    lines.push(formatted);
+    totalLen += formatted.length;
+  }
+
+  if (lines.length === 0) return null;
+  return lines.reverse().join("");
+}
+
+/** Load a session's full message history and format as a compact transcript */
+export async function getSessionTranscript(
+  sessionId: string,
+  projectId?: string,
+  maxChars = TRANSCRIPT_MAX_CHARS
+): Promise<string | null> {
+  const found = await findSessionFile(sessionId, projectId);
+  if (!found) return null;
+
+  const lines = await parseJsonlFile(found.filePath);
+  const messages = convertToMessages(lines);
+  return buildTranscript(messages, maxChars);
 }
 
 /**

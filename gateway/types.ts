@@ -1,3 +1,12 @@
+/**
+ * Gateway types — models Claude Code's JSONL file format and raw data shapes.
+ *
+ * These types are intentionally separate from ui/types.ts. Gateway types match
+ * the on-disk JSONL format (RawSessionLine, RawContentBlock) and the API
+ * response shapes served to the frontend. UI types model what gets rendered
+ * in Lit components (e.g. ChatMessage adds a `streaming` flag).
+ */
+
 /** Raw JSONL line from a Claude Code session file */
 export interface RawSessionLine {
   type: "user" | "assistant" | "file-history-snapshot" | "system" | "agent-name" | "custom-title" | "last-prompt" | "queue-operation";

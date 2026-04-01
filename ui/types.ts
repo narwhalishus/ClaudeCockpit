@@ -1,3 +1,13 @@
+/**
+ * UI types — simplified shapes for rendering in Lit components.
+ *
+ * These mirror gateway/types.ts but are tailored for the frontend:
+ * ChatMessage adds `streaming` (client-only state), SessionMessage is
+ * simplified, and ToolApprovalEvent wraps the gateway's control_request
+ * forwarding. This intentional boundary keeps gateway concerns (JSONL
+ * parsing, raw content blocks) out of UI code.
+ */
+
 /** A Claude Code project directory (grouped by cwd) */
 export interface Project {
   /** Encoded path used as directory name in ~/.claude/projects/ */

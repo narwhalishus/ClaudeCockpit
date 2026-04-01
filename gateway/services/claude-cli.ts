@@ -11,6 +11,11 @@
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
+import {
+  TITLE_GENERATION_TIMEOUT_MS,
+  TITLE_MAX_LENGTH,
+  TITLE_GENERATION_MAX_BUDGET,
+} from "../constants.ts";
 
 export interface ChatRequest {
   prompt: string;
@@ -331,17 +336,17 @@ export async function generateTitle(firstPrompt: string): Promise<string | null>
     const timeout = setTimeout(() => {
       proc.abort();
       resolve(null);
-    }, 15_000);
+    }, TITLE_GENERATION_TIMEOUT_MS);
 
     const proc = new ClaudeProcess({
       prompt,
-      maxBudget: 0.05,
+      maxBudget: TITLE_GENERATION_MAX_BUDGET,
       noSession: true,
     });
 
     proc.on("result", (data: Record<string, unknown>) => {
       clearTimeout(timeout);
-      const result = (data.result as string ?? "").trim().slice(0, 100);
+      const result = (data.result as string ?? "").trim().slice(0, TITLE_MAX_LENGTH);
       resolve(result || null);
     });
 

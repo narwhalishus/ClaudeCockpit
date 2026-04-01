@@ -9,9 +9,11 @@ import {
   listSessions,
   listProjects,
   getSessionMessages,
+  getSessionTranscript,
   renameSession,
 } from "./services/session-store.ts";
 import { startChat, abortChat, getProcess, generateTitle } from "./services/claude-cli.ts";
+import { SUMMARY_MAX_BUDGET, TITLE_MAX_LENGTH } from "./constants.ts";
 import {
   parseFrame,
   serializeFrame,
@@ -98,7 +100,7 @@ function send(ws: WebSocket, frame: GatewayFrame) {
   }
 }
 
-async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
+export async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
   const { id, method, params } = req;
   const p = (params ?? {}) as Record<string, unknown>;
 
@@ -129,7 +131,7 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
         const projectId = p.projectId as string | undefined;
         const limit = (p.limit as number) ?? 50;
         const beforeIndex = p.beforeIndex as number | undefined;
-        if (!sessionId) {
+        if (typeof sessionId !== "string" || !sessionId) {
           send(ws, errResponse(id, "INVALID_PARAMS", "sessionId is required"));
           break;
         }
@@ -155,7 +157,7 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
         const cwd = p.cwd as string | undefined;
         const isNewSession = !sessionId;
 
-        if (!prompt) {
+        if (typeof prompt !== "string" || !prompt) {
           send(ws, errResponse(id, "INVALID_PARAMS", "prompt is required"));
           break;
         }
@@ -208,7 +210,7 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
                 await renameSession(sid, title);
                 send(ws, event("session.titled", { sessionId: sid, title }));
               }
-            }).catch(() => {});
+            }).catch((err) => console.error("Title generation failed:", err));
           }
         });
 
@@ -223,7 +225,7 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
 
       case "chat.abort": {
         const chatId = p.chatId as string;
-        if (!chatId) {
+        if (typeof chatId !== "string" || !chatId) {
           send(ws, errResponse(id, "INVALID_PARAMS", "chatId is required"));
           break;
         }
@@ -238,7 +240,7 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
         const behavior = p.behavior as "allow" | "deny";
         const message = p.message as string | undefined;
 
-        if (!chatId || !requestId || !behavior) {
+        if (typeof chatId !== "string" || typeof requestId !== "string" || !behavior) {
           send(ws, errResponse(id, "INVALID_PARAMS", "chatId, requestId, and behavior are required"));
           break;
         }
@@ -254,10 +256,52 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
         break;
       }
 
+      case "sessions.summarize": {
+        const sessionId = p.sessionId as string;
+        const projectId = p.projectId as string | undefined;
+        if (typeof sessionId !== "string" || !sessionId) {
+          send(ws, errResponse(id, "INVALID_PARAMS", "sessionId is required"));
+          break;
+        }
+
+        const transcript = await getSessionTranscript(sessionId, projectId);
+        if (!transcript) {
+          send(ws, errResponse(id, "NOT_FOUND", "Session not found or empty"));
+          break;
+        }
+
+        const summaryPrompt = `Summarize this Claude Code session for a developer catching up. Be concise and specific.\n\nFormat:\n- **What:** What was being worked on\n- **Changes:** Key changes, decisions, and actions taken\n- **Status:** Current state and any unfinished items\n\nUse file names and technical details. Keep it under 150 words.\n\nTranscript:\n---\n${transcript}\n---`;
+        const summaryId = `summary-${sessionId}-${Date.now()}`;
+
+        const proc = startChat(summaryId, {
+          prompt: summaryPrompt,
+          noSession: true,
+          maxBudget: SUMMARY_MAX_BUDGET,
+        });
+
+        proc.on("chunk", (chunk) => {
+          const c = chunk as { type: string; content?: string };
+          if (c.type === "text" && c.content) {
+            send(ws, event("summary.chunk", { sessionId, content: c.content }));
+          }
+        });
+
+        proc.on("error", (err) => {
+          send(ws, event("summary.error", { sessionId, message: (err as Error).message }));
+        });
+
+        proc.on("close", () => {
+          send(ws, event("summary.done", { sessionId }));
+          send(ws, okResponse(id, { sessionId, status: "completed" }));
+        });
+
+        break;
+      }
+
       case "sessions.rename": {
         const sessionId = p.sessionId as string;
-        const rawTitle = (p.title as string ?? "").trim().slice(0, 100);
-        if (!sessionId || !rawTitle) {
+        const rawTitle = (p.title as string ?? "").trim().slice(0, TITLE_MAX_LENGTH);
+        if (typeof sessionId !== "string" || !sessionId || !rawTitle) {
           send(ws, errResponse(id, "INVALID_PARAMS", "sessionId and non-empty title are required"));
           break;
         }
@@ -289,7 +333,8 @@ function handleWsConnection(ws: WebSocket) {
 
   ws.on("close", () => {
     console.log("WebSocket client disconnected");
-    // Auto-deny any pending tool approvals for this client's chats
+    // Auto-deny pending tool approvals so claude -p doesn't hang indefinitely
+    // waiting for approval if the UI crashes or the browser tab is closed.
     const chatIds = wsChats.get(ws);
     if (chatIds) {
       for (const chatId of chatIds) {

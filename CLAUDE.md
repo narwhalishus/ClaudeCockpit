@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — starts both Vite dev server (:5173) and gateway server (:18800) concurrently
 - `npm run dev:ui` — Vite frontend only
 - `npm run dev:gateway` — gateway server only (uses `tsx watch`)
-- `npm test` — run all tests (`vitest run`, 85 tests)
+- `npm test` — run all tests (`vitest run`, ~166 tests)
 - `npm run test:watch` — tests in watch mode
 - `npx vitest run tests/gateway/session-store.test.ts` — run a single test file
 - `npm run build` — production build to `dist/`
@@ -48,7 +48,7 @@ Node.js HTTP + WebSocket server on port 18800.
 
 - **HTTP**: `/api/overview`, `/api/sessions`, `/api/projects`, `/api/health` — overview and sessions accept `?project=<id>` for project-scoped results
 - **WebSocket**: `/ws` — custom frame protocol (`gateway/protocol/frames.ts`) with three frame types: `req` (client->server), `res` (server->client response), `event` (server->client push)
-- WS methods: `overview.get` (accepts `project`), `sessions.list` (accepts `project`), `projects.list`, `sessions.messages`, `sessions.rename`, `chat.send`, `chat.abort`, `tool.respond`
+- WS methods: `overview.get` (accepts `project`), `sessions.list` (accepts `project`), `projects.list`, `sessions.messages`, `sessions.rename`, `sessions.summarize`, `chat.send`, `chat.abort`, `tool.respond`
 
 Key services:
 - `gateway/services/session-store.ts` — JSONL parser + data aggregation. `convertToMessages()` is the most complex function: collapses streaming assistant chunks (same msg ID), matches `tool_result` blocks back to parent assistant message's tool/agent blocks via `tool_use_id`.
@@ -68,9 +68,31 @@ Lit web components in **light DOM** (`createRenderRoot() { return this; }`). All
 
 Types intentionally duplicated: `gateway/types.ts` has raw JSONL parsing types (`RawSessionLine`, `RawContentBlock`) + API response shapes. `ui/types.ts` has simplified UI-facing versions. This is a deliberate boundary — gateway types model Claude Code's file format, UI types model what gets rendered.
 
+### Control Protocol Flow
+
+Interactive chat uses Claude Code's bidirectional control protocol for tool approval:
+1. Gateway spawns `claude -p --input-format stream-json --permission-mode default`
+2. Prompt sent via stdin as structured JSON `{ type: "user", message: { role: "user", content: "..." } }`
+3. When Claude requests tool approval, it emits `{ type: "control_request", request_id, request }` on stdout
+4. Gateway forwards to UI as `tool.approval` event; UI shows approve/deny banner
+5. User response sent back via `tool.respond` WS method → gateway writes `control_response` to stdin
+6. If the UI disconnects while approval is pending, the gateway auto-denies to prevent `claude -p` from hanging
+
 ### Testing
 
-Vitest + jsdom. Tests in `tests/` mirror source structure. Gateway tests are pure unit tests on data-transform functions (no filesystem). UI tests render Lit components into jsdom, assert DOM via `updateComplete`.
+Vitest + jsdom. Tests in `tests/` mirror source structure:
+
+- `tests/gateway/session-store.test.ts` — `summarizeSession`, `consolidateMessages`, `computeOverviewStats`, `buildTranscript`
+- `tests/gateway/convert-messages.test.ts` — `convertToMessages` (streaming dedup, tool attachment, filtering)
+- `tests/gateway/claude-cli.test.ts` — `buildArgs`, `handleParsedLine` (all content block types), `processBuffer`
+- `tests/gateway/server.test.ts` — `handleWsRequest` (mocked services, all WS methods)
+- `tests/gateway/frames.test.ts` — frame serialization/parsing
+- `tests/ui/chat.test.ts` — markdown rendering, session titles, sidebar/detail panels, stream handlers, summary
+- `tests/ui/gateway.test.ts` — `GatewayBrowserClient` (request/response matching, events, connection state)
+- `tests/ui/overview.test.ts` — overview component rendering
+- `tests/ui/format.test.ts` — shared format utilities
+
+Gateway tests are pure unit tests (no filesystem, no real processes). UI tests render Lit components into jsdom, assert DOM via `updateComplete`. To add tests: create a file in `tests/` mirroring the source path, import the function/component, and use vitest helpers.
 
 ## JSONL Data Model
 

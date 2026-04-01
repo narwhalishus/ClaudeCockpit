@@ -578,7 +578,7 @@ describe("cockpit-chat sidebar toggle", () => {
     expect(el.querySelector(".chat-layout")!.classList.contains("chat-layout--sidebar-collapsed")).toBe(true);
   });
 
-  it("shows info toggle button only when a session is active", async () => {
+  it("shows summary + info toggle buttons only when a session is active", async () => {
     const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
@@ -586,13 +586,239 @@ describe("cockpit-chat sidebar toggle", () => {
     const buttons = el.querySelectorAll(".chat__toolbar-btn");
     expect(buttons.length).toBe(1);
 
-    // Set active session
+    // Set active session — adds summary button + info toggle
     await setProps(el, {
       sessions: [MOCK_SESSION],
       activeSessionId: "abc-123-def",
     });
 
     const buttonsWithSession = el.querySelectorAll(".chat__toolbar-btn");
-    expect(buttonsWithSession.length).toBe(2);
+    expect(buttonsWithSession.length).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stream event handlers (_onChunk, _onClose)
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat stream handlers", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("_onChunk text appends to streaming message content", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      currentChatId: "chat-1",
+      streaming: true,
+      messages: [
+        { uuid: "u1", role: "user", content: "hi", timestamp: new Date().toISOString() },
+        { uuid: "a1", role: "assistant", content: "Hello", timestamp: new Date().toISOString(), streaming: true },
+      ],
+    });
+
+    // Call _onChunk directly
+    (el as any)._onChunk({ chatId: "chat-1", type: "text", content: " world" });
+    await (el as any).updateComplete;
+
+    const lastMsg = (el as any).messages[(el as any).messages.length - 1];
+    expect(lastMsg.content).toBe("Hello world");
+  });
+
+  it("_onChunk ignores wrong chatId", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      currentChatId: "chat-1",
+      streaming: true,
+      messages: [
+        { uuid: "a1", role: "assistant", content: "Original", timestamp: new Date().toISOString(), streaming: true },
+      ],
+    });
+
+    (el as any)._onChunk({ chatId: "wrong-id", type: "text", content: " SHOULD NOT APPEAR" });
+    await (el as any).updateComplete;
+
+    const lastMsg = (el as any).messages[(el as any).messages.length - 1];
+    expect(lastMsg.content).toBe("Original");
+  });
+
+  it("_onChunk tool_use adds to tools array", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      currentChatId: "chat-1",
+      streaming: true,
+      messages: [
+        { uuid: "a1", role: "assistant", content: "Working", timestamp: new Date().toISOString(), streaming: true },
+      ],
+    });
+
+    (el as any)._onChunk({
+      chatId: "chat-1",
+      type: "tool_use",
+      content: "Edit",
+      raw: { id: "tool-1", name: "Edit", input: { file_path: "/tmp/a.ts" } },
+    });
+    await (el as any).updateComplete;
+
+    const lastMsg = (el as any).messages[(el as any).messages.length - 1];
+    expect(lastMsg.tools).toHaveLength(1);
+    expect(lastMsg.tools[0].name).toBe("Edit");
+  });
+
+  it("_onChunk thinking appends to thinking field", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      currentChatId: "chat-1",
+      streaming: true,
+      messages: [
+        { uuid: "a1", role: "assistant", content: "", timestamp: new Date().toISOString(), streaming: true },
+      ],
+    });
+
+    (el as any)._onChunk({ chatId: "chat-1", type: "thinking", content: "Step 1. " });
+    (el as any)._onChunk({ chatId: "chat-1", type: "thinking", content: "Step 2." });
+    await (el as any).updateComplete;
+
+    const lastMsg = (el as any).messages[(el as any).messages.length - 1];
+    expect(lastMsg.thinking).toBe("Step 1. Step 2.");
+  });
+
+  it("_onClose clears streaming state", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      currentChatId: "chat-1",
+      streaming: true,
+      messages: [
+        { uuid: "a1", role: "assistant", content: "Done.", timestamp: new Date().toISOString(), streaming: true },
+      ],
+    });
+
+    (el as any)._onClose();
+    await (el as any).updateComplete;
+
+    expect((el as any).streaming).toBe(false);
+    const lastMsg = (el as any).messages[(el as any).messages.length - 1];
+    expect(lastMsg.streaming).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Session summary ("Catch me up")
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat session summary", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("does not show summary card by default", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+    });
+
+    expect(el.querySelector(".chat__summary")).toBeNull();
+  });
+
+  it("shows summary card when summaryVisible is true", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      summaryVisible: true,
+      summarizing: true,
+    });
+
+    const card = el.querySelector(".chat__summary");
+    expect(card).not.toBeNull();
+
+    const title = el.querySelector(".chat__summary-title");
+    expect(title!.textContent).toContain("Session Summary");
+
+    // Should show loading text when no content yet
+    const loading = el.querySelector(".chat__summary-loading");
+    expect(loading).not.toBeNull();
+    expect(loading!.textContent).toContain("Summarizing");
+  });
+
+  it("renders summary content as markdown", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      summaryVisible: true,
+      summarizing: false,
+      summaryContent: "- **What:** Fixed the auth bug\n- **Changes:** Updated login.ts\n- **Status:** Complete",
+    });
+
+    const card = el.querySelector(".chat__summary");
+    expect(card).not.toBeNull();
+
+    // Should render markdown
+    const mdBody = card!.querySelector(".markdown-body");
+    expect(mdBody).not.toBeNull();
+
+    const strong = mdBody!.querySelector("strong");
+    expect(strong).not.toBeNull();
+
+    // Should NOT show loading text
+    expect(el.querySelector(".chat__summary-loading")).toBeNull();
+    // Should NOT show cursor
+    expect(card!.querySelector(".chat__cursor")).toBeNull();
+  });
+
+  it("shows streaming cursor while summarizing", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      summaryVisible: true,
+      summarizing: true,
+      summaryContent: "- **What:** Partial text",
+    });
+
+    const card = el.querySelector(".chat__summary");
+    const cursor = card!.querySelector(".chat__cursor");
+    expect(cursor).not.toBeNull();
+  });
+
+  it("dismisses summary card on close button click", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      summaryVisible: true,
+      summaryContent: "Some summary",
+    });
+
+    expect(el.querySelector(".chat__summary")).not.toBeNull();
+
+    // Click the dismiss button (inside summary header)
+    const dismissBtn = el.querySelector(".chat__summary-header .chat__toolbar-btn") as HTMLElement;
+    dismissBtn.click();
+    await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
+
+    expect(el.querySelector(".chat__summary")).toBeNull();
   });
 });

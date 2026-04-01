@@ -11,6 +11,7 @@ import {
   summarizeSession,
   consolidateMessages,
   computeOverviewStats,
+  buildTranscript,
 } from "../../gateway/services/session-store.ts";
 import type { RawSessionLine, SessionSummary } from "../../gateway/types.ts";
 import type { ChatMessage } from "../../gateway/types.ts";
@@ -476,5 +477,114 @@ describe("computeOverviewStats", () => {
 
     expect(result.totalCacheReadTokens).toBe(3000);
     expect(result.totalCacheCreationTokens).toBe(400);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildTranscript
+// ---------------------------------------------------------------------------
+
+describe("buildTranscript", () => {
+  it("returns null for empty messages", () => {
+    expect(buildTranscript([])).toBeNull();
+  });
+
+  it("formats user and assistant messages", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ role: "user", content: "Fix the auth bug" }),
+      chatMsg({ uuid: "a1", role: "assistant", content: "I'll fix the auth bug now." }),
+    ];
+    const result = buildTranscript(messages);
+
+    expect(result).toContain("[User] Fix the auth bug");
+    expect(result).toContain("[Assistant] I'll fix the auth bug now.");
+  });
+
+  it("appends tool names to assistant messages", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ role: "user", content: "Read and edit the file" }),
+      chatMsg({
+        uuid: "a1",
+        role: "assistant",
+        content: "Let me update that.",
+        tools: [
+          { toolUseId: "t1", name: "Read" },
+          { toolUseId: "t2", name: "Edit" },
+        ],
+      }),
+    ];
+    const result = buildTranscript(messages);
+
+    expect(result).toContain("[tools: Read, Edit]");
+  });
+
+  it("appends agent names with subagent type", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ role: "user", content: "Search the codebase" }),
+      chatMsg({
+        uuid: "a1",
+        role: "assistant",
+        content: "Searching now.",
+        agents: [
+          { toolUseId: "ag1", description: "search files", subagentType: "Explore", prompt: "..." },
+        ],
+      }),
+    ];
+    const result = buildTranscript(messages);
+
+    expect(result).toContain("[tools: Agent(Explore)]");
+  });
+
+  it("truncates user messages to 500 chars", () => {
+    const longMsg = "x".repeat(800);
+    const messages: ChatMessage[] = [
+      chatMsg({ role: "user", content: longMsg }),
+    ];
+    const result = buildTranscript(messages)!;
+
+    // The user line should be: "[User] " + 500 chars + "\n\n"
+    const userLine = result.split("\n\n")[0];
+    // "[User] " is 7 chars, so content is 500
+    expect(userLine.length).toBe(507);
+  });
+
+  it("truncates assistant messages to 300 chars", () => {
+    const longMsg = "y".repeat(600);
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "a1", role: "assistant", content: longMsg }),
+    ];
+    const result = buildTranscript(messages)!;
+
+    const assistantLine = result.split("\n\n")[0];
+    // "[Assistant] " is 12 chars, so content is 300
+    expect(assistantLine.length).toBe(312);
+  });
+
+  it("truncates from the beginning when exceeding maxChars", () => {
+    const messages: ChatMessage[] = Array.from({ length: 100 }, (_, i) =>
+      chatMsg({ uuid: `m${i}`, role: "user", content: `Message ${i}: ${"A".repeat(200)}` })
+    );
+    const result = buildTranscript(messages, 500)!;
+
+    expect(result).toContain("[...earlier messages omitted...]");
+    // Should contain the latest messages, not the earliest
+    expect(result).toContain("Message 99");
+    expect(result).not.toContain("Message 0:");
+  });
+
+  it("falls back to description for agents without subagentType", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({
+        uuid: "a1",
+        role: "assistant",
+        content: "Done.",
+        agents: [
+          { toolUseId: "ag1", description: "find test files", subagentType: "", prompt: "..." },
+        ],
+      }),
+    ];
+    const result = buildTranscript(messages);
+
+    expect(result).toContain("[tools: Agent(find test files)]");
   });
 });

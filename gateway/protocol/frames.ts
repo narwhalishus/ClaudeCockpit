@@ -45,8 +45,10 @@ export type GatewayFrame = RequestFrame | ResponseFrame | EventFrame;
 export type RequestMethod =
   | "overview.get"
   | "sessions.list"
-  | "projects.list"
+  | "sessions.messages"
   | "sessions.rename"
+  | "sessions.summarize"
+  | "projects.list"
   | "chat.send"
   | "chat.abort"
   | "tool.respond";

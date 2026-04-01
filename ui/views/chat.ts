@@ -13,23 +13,7 @@ import type {
   ToolBlock,
   ToolApprovalEvent,
 } from "../types.ts";
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
-  return String(n);
-}
-
-function formatDuration(startIso: string, endIso: string): string {
-  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
-  if (ms < 0) return "—";
-  const secs = Math.floor(ms / 1000);
-  if (secs < 60) return `${secs}s`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ${secs % 60}s`;
-  const hours = Math.floor(mins / 60);
-  return `${hours}h ${mins % 60}m`;
-}
+import { formatTokens, formatRelativeTime, formatDuration } from "../utils/format.ts";
 
 /** Pre-configured Marked instance for rendering assistant messages */
 const md = new Marked({
@@ -51,17 +35,6 @@ function preprocessInsights(src: string): string {
     const escapedBody = body.trim();
     return `<div class="chat__insight"><div class="chat__insight-header">★ Insight</div>\n\n${escapedBody}\n\n</div>`;
   });
-}
-
-function formatRelativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
 }
 
 function groupSessionsByDay(
@@ -90,6 +63,13 @@ function groupSessionsByDay(
   return Array.from(groups, ([label, sessions]) => ({ label, sessions }));
 }
 
+/**
+ * Session cockpit — three-panel layout: session sidebar | conversation | detail sidebar.
+ *
+ * Data flow: setGateway() wires event subscriptions → gateway events update @state
+ * properties → Lit re-renders. Key state: `messages` (conversation history),
+ * `streaming`/`currentChatId` (active chat), `pendingApproval` (tool approval UI).
+ */
 @customElement("cockpit-chat")
 export class CockpitChat extends LitElement {
   protected override createRenderRoot() {
@@ -113,6 +93,9 @@ export class CockpitChat extends LitElement {
   @state() private pinnedSessionIds: Set<string> = new Set(
     JSON.parse(localStorage.getItem("pinned-sessions") ?? "[]")
   );
+  @state() private summaryContent = "";
+  @state() private summarizing = false;
+  @state() private summaryVisible = false;
 
   private gateway: GatewayBrowserClient | null = null;
   private unsubscribers: (() => void)[] = [];
@@ -139,6 +122,25 @@ export class CockpitChat extends LitElement {
       }),
       gw.on("tool.approval", (data: unknown) => {
         this.pendingApproval = data as ToolApprovalEvent;
+      }),
+      gw.on("summary.chunk", (data: unknown) => {
+        const d = data as { sessionId: string; content: string };
+        if (d.sessionId === this.activeSessionId) {
+          this.summaryContent += d.content;
+        }
+      }),
+      gw.on("summary.done", (data: unknown) => {
+        const d = data as { sessionId: string };
+        if (d.sessionId === this.activeSessionId) {
+          this.summarizing = false;
+        }
+      }),
+      gw.on("summary.error", (data: unknown) => {
+        const d = data as { sessionId: string; message: string };
+        if (d.sessionId === this.activeSessionId) {
+          this.summarizing = false;
+          this.summaryContent = "Failed to generate summary.";
+        }
       })
     );
 
@@ -234,6 +236,9 @@ export class CockpitChat extends LitElement {
   // ── Session actions ───────────────────────────────────────────────────
 
   private _selectSession(sessionId: string) {
+    this.summaryVisible = false;
+    this.summaryContent = "";
+    this.summarizing = false;
     this._loadSessionMessages(sessionId);
   }
 
@@ -243,6 +248,9 @@ export class CockpitChat extends LitElement {
     this.streaming = false;
     this.currentChatId = null;
     this.pendingApproval = null;
+    this.summaryVisible = false;
+    this.summaryContent = "";
+    this.summarizing = false;
   }
 
   private _togglePin(sessionId: string) {
@@ -317,6 +325,8 @@ export class CockpitChat extends LitElement {
 
   private _onApprovalKeyDown = (e: KeyboardEvent) => {
     if (!this.pendingApproval) return;
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
     if (e.key === "y" || e.key === "Y") {
       e.preventDefault();
       this._approveToolUse();
@@ -368,8 +378,37 @@ export class CockpitChat extends LitElement {
     if (this.currentChatId && this.gateway?.connected) {
       this.gateway
         .request("chat.abort", { chatId: this.currentChatId })
-        .catch(() => {});
+        .catch((err: unknown) => console.error("Abort failed:", err));
     }
+  }
+
+  // ── Session summary ────────────────────────────────────────────────────
+
+  private async _requestSummary() {
+    if (!this.activeSessionId || !this.gateway?.connected || this.summarizing) return;
+
+    this.summaryContent = "";
+    this.summarizing = true;
+    this.summaryVisible = true;
+
+    try {
+      await this.gateway.request(
+        "sessions.summarize",
+        {
+          sessionId: this.activeSessionId,
+          projectId: this.projectId || undefined,
+        },
+        60_000
+      );
+    } catch {
+      // Error handled via summary.error event
+    }
+  }
+
+  private _dismissSummary() {
+    this.summaryVisible = false;
+    this.summaryContent = "";
+    this.summarizing = false;
   }
 
   // ── Stream event handlers ─────────────────────────────────────────────
@@ -576,6 +615,16 @@ export class CockpitChat extends LitElement {
           <div class="chat__toolbar-spacer"></div>
           ${this.activeSessionId
             ? html`<button
+                class="chat__toolbar-btn"
+                @click=${this._requestSummary}
+                ?disabled=${this.summarizing || this.streaming}
+                title="Catch me up — summarize this session"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16"><path d="M14 4l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/><path d="M5 12l.67 2 2 .67-2 .66L5 17.33l-.67-2-2-.66 2-.67z"/><path d="M18 14l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5L16 16l1.5-.5z"/></svg>
+              </button>`
+            : nothing}
+          ${this.activeSessionId
+            ? html`<button
                 class="chat__toolbar-btn ${this.detailOpen ? "chat__toolbar-btn--active" : ""}"
                 @click=${() => { this.detailOpen = !this.detailOpen; }}
                 title="${this.detailOpen ? "Hide session info" : "Show session info"}"
@@ -617,6 +666,7 @@ export class CockpitChat extends LitElement {
           ${this.messages.map((msg) => this._renderMessage(msg))}
         </div>
 
+        ${this.summaryVisible ? this._renderSummaryCard() : nothing}
         ${this.pendingApproval ? this._renderApprovalBanner() : nothing}
 
         <div class="chat__input-area">
@@ -736,6 +786,39 @@ export class CockpitChat extends LitElement {
           </div>
         </div>
       </aside>
+    `;
+  }
+
+  private _renderSummaryCard() {
+    const cursor = this.summarizing
+      ? html`<span class="chat__cursor"></span>`
+      : nothing;
+
+    return html`
+      <div class="chat__summary">
+        <div class="chat__summary-header">
+          <span class="chat__summary-title">Session Summary</span>
+          <button
+            class="chat__toolbar-btn"
+            @click=${this._dismissSummary}
+            title="Dismiss"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="chat__summary-body">
+          ${this.summaryContent
+            ? html`<div class="markdown-body">${unsafeHTML(
+                md.parse(this.summaryContent) as string
+              )}</div>`
+            : this.summarizing
+              ? html`<span class="chat__summary-loading"
+                  >Summarizing session...</span
+                >`
+              : nothing}
+          ${cursor}
+        </div>
+      </div>
     `;
   }
 
