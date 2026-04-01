@@ -666,7 +666,7 @@ export class CockpitChat extends LitElement {
     const content = msg.content
       ? isAssistant
         ? html`<div class="markdown-body">${unsafeHTML(md.parse(preprocessInsights(msg.content)) as string)}</div>`
-        : msg.content
+        : msg.content.trim()
       : msg.streaming
         ? html`<span class="chat__cursor"></span>`
         : "";
@@ -687,9 +687,7 @@ export class CockpitChat extends LitElement {
               <div class="chat__thinking-content">${msg.thinking}</div>
             </details>`
           : nothing}
-        <div class="chat__msg-content">
-          ${content}${cursor}
-        </div>
+        <div class="chat__msg-content">${content}${cursor}</div>
         ${msg.agents?.length
           ? msg.agents.map((a) => this._renderAgentBlock(a))
           : nothing}
