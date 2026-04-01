@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — starts both Vite dev server (:5173) and gateway server (:18800) concurrently
 - `npm run dev:ui` — Vite frontend only
 - `npm run dev:gateway` — gateway server only (uses `tsx watch`)
-- `npm test` — run all tests (`vitest run`, 48 tests)
+- `npm test` — run all tests (`vitest run`, 61 tests)
 - `npm run test:watch` — tests in watch mode
 - `npx vitest run tests/gateway/session-store.test.ts` — run a single test file
 - `npm run build` — production build to `dist/`
@@ -46,9 +46,9 @@ Lit + Vite (SPA :5173) ──/api/*──> Gateway (Node.js :18800)
 
 Node.js HTTP + WebSocket server on port 18800.
 
-- **HTTP**: `/api/overview`, `/api/sessions`, `/api/projects`, `/api/health`
+- **HTTP**: `/api/overview`, `/api/sessions`, `/api/projects`, `/api/health` — overview and sessions accept `?project=<id>` for project-scoped results
 - **WebSocket**: `/ws` — custom frame protocol (`gateway/protocol/frames.ts`) with three frame types: `req` (client->server), `res` (server->client response), `event` (server->client push)
-- WS methods: `overview.get`, `sessions.list`, `projects.list`, `sessions.messages`, `sessions.rename`, `chat.send`, `chat.abort`
+- WS methods: `overview.get` (accepts `project`), `sessions.list` (accepts `project`), `projects.list`, `sessions.messages`, `sessions.rename`, `chat.send`, `chat.abort`
 
 Key services:
 - `gateway/services/session-store.ts` — JSONL parser + data aggregation. `convertToMessages()` is the most complex function: collapses streaming assistant chunks (same msg ID), matches `tool_result` blocks back to parent assistant message's tool/agent blocks via `tool_use_id`.
@@ -58,7 +58,7 @@ Key services:
 
 Lit web components in **light DOM** (`createRenderRoot() { return this; }`). All styling via global CSS in `ui/styles/`. No Shadow DOM.
 
-- `ui/app.ts` — `<cockpit-app>` shell: sidebar nav, hash-based routing, dual WS+HTTP data fetching
+- `ui/app.ts` — `<cockpit-app>` shell: sidebar nav, **global project selector**, hash-based routing (`#tab/projectId`), dual WS+HTTP data fetching. Owns `selectedProjectId` state and passes it to all views.
 - `ui/gateway.ts` — `GatewayBrowserClient`: request/response matching by frame ID, event subscriptions, exponential backoff reconnection
 - `ui/views/chat.ts` — **Session cockpit**: two-panel layout (session sidebar + conversation). Project switcher, sessions grouped by day, pinned sessions (localStorage), paginated message history, streaming display with cursor, inline collapsible agent/tool blocks
 - `ui/views/sessions.ts` — sortable/filterable data table, click row -> opens in chat
