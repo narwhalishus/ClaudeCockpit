@@ -10,8 +10,9 @@ import {
   extractText,
   summarizeSession,
   consolidateMessages,
+  computeOverviewStats,
 } from "../../gateway/services/session-store.ts";
-import type { RawSessionLine } from "../../gateway/types.ts";
+import type { RawSessionLine, SessionSummary } from "../../gateway/types.ts";
 import type { ChatMessage } from "../../gateway/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -387,5 +388,93 @@ describe("consolidateMessages", () => {
     const result = consolidateMessages(messages);
 
     expect(result[0].timestamp).toBe("2026-03-31T10:05:00.000Z");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeOverviewStats
+// ---------------------------------------------------------------------------
+
+function makeSession(overrides: Partial<SessionSummary> = {}): SessionSummary {
+  return {
+    sessionId: "sess-1",
+    projectId: "-Users-bryao-code-test",
+    projectPath: "/Users/bryao/code/test",
+    cwd: "/Users/bryao/code/test",
+    startedAt: "2026-03-31T10:00:00.000Z",
+    lastMessageAt: "2026-03-31T10:00:05.000Z",
+    messageCount: 2,
+    model: "claude-opus-4-6",
+    version: "2.1.87",
+    totalInputTokens: 100,
+    totalOutputTokens: 50,
+    totalCacheReadTokens: 5000,
+    totalCacheCreationTokens: 200,
+    firstPrompt: "Fix the bug",
+    ...overrides,
+  };
+}
+
+describe("computeOverviewStats", () => {
+  it("aggregates tokens across multiple sessions", () => {
+    const sessions = [
+      makeSession({ totalInputTokens: 100, totalOutputTokens: 50 }),
+      makeSession({ sessionId: "sess-2", totalInputTokens: 200, totalOutputTokens: 100 }),
+    ];
+    const result = computeOverviewStats(sessions, 3);
+
+    expect(result.totalSessions).toBe(2);
+    expect(result.totalProjects).toBe(3);
+    expect(result.totalInputTokens).toBe(300);
+    expect(result.totalOutputTokens).toBe(150);
+  });
+
+  it("returns totalProjects as passed (1 for project-scoped)", () => {
+    const sessions = [makeSession()];
+    const result = computeOverviewStats(sessions, 1);
+    expect(result.totalProjects).toBe(1);
+  });
+
+  it("returns zeroes for empty session list", () => {
+    const result = computeOverviewStats([], 0);
+
+    expect(result.totalSessions).toBe(0);
+    expect(result.totalInputTokens).toBe(0);
+    expect(result.totalOutputTokens).toBe(0);
+    expect(result.sessionsToday).toBe(0);
+    expect(result.recentSessions).toEqual([]);
+  });
+
+  it("counts sessionsToday based on lastMessageAt", () => {
+    const today = new Date().toISOString();
+    const yesterday = new Date(Date.now() - 86_400_000 * 2).toISOString();
+    const sessions = [
+      makeSession({ sessionId: "s1", lastMessageAt: today }),
+      makeSession({ sessionId: "s2", lastMessageAt: today }),
+      makeSession({ sessionId: "s3", lastMessageAt: yesterday }),
+    ];
+    const result = computeOverviewStats(sessions, 1);
+
+    expect(result.sessionsToday).toBe(2);
+  });
+
+  it("limits recentSessions to 10", () => {
+    const sessions = Array.from({ length: 15 }, (_, i) =>
+      makeSession({ sessionId: `sess-${i}` })
+    );
+    const result = computeOverviewStats(sessions, 1);
+
+    expect(result.recentSessions.length).toBe(10);
+  });
+
+  it("aggregates cache tokens correctly", () => {
+    const sessions = [
+      makeSession({ totalCacheReadTokens: 1000, totalCacheCreationTokens: 100 }),
+      makeSession({ sessionId: "s2", totalCacheReadTokens: 2000, totalCacheCreationTokens: 300 }),
+    ];
+    const result = computeOverviewStats(sessions, 1);
+
+    expect(result.totalCacheReadTokens).toBe(3000);
+    expect(result.totalCacheCreationTokens).toBe(400);
   });
 });

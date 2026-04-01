@@ -56,7 +56,8 @@ async function handleHttp(req: IncomingMessage, res: ServerResponse) {
 
   try {
     if (path === "/api/overview") {
-      json(res, await getOverviewStats());
+      const projectId = url.searchParams.get("project") ?? undefined;
+      json(res, await getOverviewStats(projectId));
     } else if (path === "/api/sessions") {
       const projectId = url.searchParams.get("project") ?? undefined;
       const sessions = await listSessions(projectId);
@@ -96,7 +97,8 @@ async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
   try {
     switch (method) {
       case "overview.get": {
-        const stats = await getOverviewStats();
+        const projectId = p.project as string | undefined;
+        const stats = await getOverviewStats(projectId);
         send(ws, okResponse(id, stats));
         break;
       }

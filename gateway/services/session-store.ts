@@ -240,11 +240,11 @@ export async function listSessions(
   );
 }
 
-/** Get overview statistics across all sessions */
-export async function getOverviewStats(): Promise<OverviewStats> {
-  const sessions = await listSessions();
-  const projects = await listProjects();
-
+/** Pure aggregation of sessions into overview stats (no I/O) */
+export function computeOverviewStats(
+  sessions: SessionSummary[],
+  totalProjects: number
+): OverviewStats {
   const now = new Date();
   const todayStart = new Date(
     now.getFullYear(),
@@ -270,7 +270,7 @@ export async function getOverviewStats(): Promise<OverviewStats> {
 
   return {
     totalSessions: sessions.length,
-    totalProjects: projects.length,
+    totalProjects,
     totalInputTokens: totalInput,
     totalOutputTokens: totalOutput,
     totalCacheReadTokens: totalCacheRead,
@@ -278,6 +278,15 @@ export async function getOverviewStats(): Promise<OverviewStats> {
     sessionsToday,
     recentSessions: sessions.slice(0, 10),
   };
+}
+
+/** Get overview statistics, optionally scoped to a single project */
+export async function getOverviewStats(
+  projectId?: string
+): Promise<OverviewStats> {
+  const sessions = await listSessions(projectId);
+  const totalProjects = projectId ? 1 : (await listProjects()).length;
+  return computeOverviewStats(sessions, totalProjects);
 }
 
 // ---------------------------------------------------------------------------
