@@ -11,6 +11,7 @@ import type {
   SessionMessagesResult,
   AgentBlock,
   ToolBlock,
+  ToolApprovalEvent,
 } from "../types.ts";
 
 /** Pre-configured Marked instance for rendering assistant messages */
@@ -86,6 +87,7 @@ export class CockpitChat extends LitElement {
   @state() private inputValue = "";
   @state() private streaming = false;
   @state() private currentChatId: string | null = null;
+  @state() private pendingApproval: ToolApprovalEvent | null = null;
   @state() private loadingHistory = false;
   @state() private renamingSessionId: string | null = null;
   @state() private hasMoreHistory = false;
@@ -115,14 +117,23 @@ export class CockpitChat extends LitElement {
         this.sessions = this.sessions.map((s) =>
           s.sessionId === sessionId ? { ...s, customTitle: title } : s
         );
+      }),
+      gw.on("tool.approval", (data: unknown) => {
+        this.pendingApproval = data as ToolApprovalEvent;
       })
     );
 
     this._loadSessionList();
   }
 
+  override connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener("keydown", this._onApprovalKeyDown);
+  }
+
   override disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener("keydown", this._onApprovalKeyDown);
     this.unsubscribers.forEach((fn) => fn());
     this.unsubscribers = [];
   }
@@ -217,6 +228,7 @@ export class CockpitChat extends LitElement {
     this.messages = [];
     this.streaming = false;
     this.currentChatId = null;
+    this.pendingApproval = null;
   }
 
   private _togglePin(sessionId: string) {
@@ -265,6 +277,40 @@ export class CockpitChat extends LitElement {
       this.renamingSessionId = null;
     }
   }
+
+  // ── Tool approval ─────────────────────────────────────────────────────
+
+  private async _approveToolUse() {
+    if (!this.pendingApproval || !this.gateway?.connected) return;
+    await this.gateway.request("tool.respond", {
+      chatId: this.pendingApproval.chatId,
+      requestId: this.pendingApproval.request_id,
+      behavior: "allow",
+    });
+    this.pendingApproval = null;
+  }
+
+  private async _denyToolUse() {
+    if (!this.pendingApproval || !this.gateway?.connected) return;
+    await this.gateway.request("tool.respond", {
+      chatId: this.pendingApproval.chatId,
+      requestId: this.pendingApproval.request_id,
+      behavior: "deny",
+      message: "User denied tool use",
+    });
+    this.pendingApproval = null;
+  }
+
+  private _onApprovalKeyDown = (e: KeyboardEvent) => {
+    if (!this.pendingApproval) return;
+    if (e.key === "y" || e.key === "Y") {
+      e.preventDefault();
+      this._approveToolUse();
+    } else if (e.key === "n" || e.key === "N" || e.key === "Escape") {
+      e.preventDefault();
+      this._denyToolUse();
+    }
+  };
 
   // ── Chat sending ──────────────────────────────────────────────────────
 
@@ -361,6 +407,7 @@ export class CockpitChat extends LitElement {
 
   private _onClose() {
     this.streaming = false;
+    this.pendingApproval = null;
     const msgs = [...this.messages];
     const last = msgs[msgs.length - 1];
     if (last?.role === "assistant" && last.streaming) {
@@ -524,6 +571,8 @@ export class CockpitChat extends LitElement {
           ${this.messages.map((msg) => this._renderMessage(msg))}
         </div>
 
+        ${this.pendingApproval ? this._renderApprovalBanner() : nothing}
+
         <div class="chat__input-area">
           ${this.streaming
             ? html`<button class="btn" @click=${this._abort}>Stop</button>`
@@ -553,6 +602,63 @@ export class CockpitChat extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  private _renderApprovalBanner() {
+    const req = this.pendingApproval!.request;
+    const toolName = req.display_name || req.tool_name;
+
+    return html`
+      <div class="tool-approval">
+        <div class="tool-approval__header">
+          <span class="tool-approval__icon">&#9888;</span>
+          <span class="tool-approval__title">Tool Approval Required</span>
+        </div>
+        <div class="tool-approval__tool-name">${toolName}</div>
+        ${req.description
+          ? html`<div class="tool-approval__desc">${req.description}</div>`
+          : nothing}
+        <div class="tool-approval__input">
+          ${this._renderToolInput(req.tool_name, req.input)}
+        </div>
+        <div class="tool-approval__actions">
+          <button class="btn tool-approval__deny" @click=${this._denyToolUse}>
+            Deny <kbd>N</kbd>
+          </button>
+          <button class="btn btn--primary tool-approval__allow" @click=${this._approveToolUse}>
+            Allow <kbd>Y</kbd>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderToolInput(toolName: string, input: Record<string, unknown>) {
+    switch (toolName) {
+      case "Bash":
+        return html`<pre class="tool-approval__code">${input.command as string}</pre>`;
+      case "Edit":
+        return html`
+          <div class="tool-approval__file">${input.file_path as string}</div>
+          ${input.old_string
+            ? html`<pre class="tool-approval__code tool-approval__code--del">${input.old_string as string}</pre>`
+            : nothing}
+          ${input.new_string
+            ? html`<pre class="tool-approval__code tool-approval__code--add">${input.new_string as string}</pre>`
+            : nothing}
+        `;
+      case "Write":
+        return html`
+          <div class="tool-approval__file">${input.file_path as string}</div>
+          <pre class="tool-approval__code">${(input.content as string)?.slice(0, 500)}</pre>
+        `;
+      case "Read":
+      case "Glob":
+      case "Grep":
+        return html`<div class="tool-approval__file">${input.file_path ?? input.pattern ?? input.path ?? ""}</div>`;
+      default:
+        return html`<pre class="tool-approval__code">${JSON.stringify(input, null, 2)}</pre>`;
+    }
   }
 
   private _renderMessage(msg: ChatMessage) {

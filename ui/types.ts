@@ -114,6 +114,20 @@ export interface SessionMessagesResult {
   hasMore: boolean;
 }
 
+/** Tool approval request forwarded from gateway */
+export interface ToolApprovalEvent {
+  chatId: string;
+  request_id: string;
+  request: {
+    subtype: "can_use_tool";
+    tool_name: string;
+    input: Record<string, unknown>;
+    tool_use_id: string;
+    description?: string;
+    display_name?: string;
+  };
+}
+
 /** Active tab in the cockpit */
 export type CockpitTab = "overview" | "sessions" | "projects" | "chat" | "usage";
 

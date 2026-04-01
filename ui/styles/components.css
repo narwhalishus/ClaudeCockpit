@@ -894,3 +894,115 @@
 }
 
 .chat__send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Tool Approval Banner ── */
+
+.tool-approval {
+  flex-shrink: 0;
+  margin: 0 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warn) 4%, var(--bg-elevated));
+  animation: rise 0.2s var(--ease-out) both;
+}
+
+.tool-approval__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tool-approval__icon {
+  font-size: 16px;
+  color: var(--warn);
+}
+
+.tool-approval__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--warn);
+}
+
+.tool-approval__tool-name {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-strong);
+  font-family: var(--mono);
+  margin-bottom: 4px;
+}
+
+.tool-approval__desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.tool-approval__input {
+  margin-bottom: 12px;
+}
+
+.tool-approval__code {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.tool-approval__code--del {
+  border-left: 3px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 5%, var(--bg));
+}
+
+.tool-approval__code--add {
+  border-left: 3px solid var(--ok);
+  background: color-mix(in srgb, var(--ok) 5%, var(--bg));
+  margin-top: 4px;
+}
+
+.tool-approval__file {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+
+.tool-approval__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tool-approval__actions kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+
+.tool-approval__deny {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  color: var(--danger);
+}
+
+.tool-approval__deny:hover {
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-elevated));
+  border-color: var(--danger);
+}
