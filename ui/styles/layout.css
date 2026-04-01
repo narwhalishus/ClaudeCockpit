@@ -6,7 +6,7 @@
   --shell-pad: 16px;
   --shell-gap: 16px;
   --shell-nav-width: 240px;
-  --shell-topbar-height: 52px;
+  --shell-topbar-height: 58px;
   height: 100vh;
   display: grid;
   grid-template-columns: var(--shell-nav-width) minmax(0, 1fr);

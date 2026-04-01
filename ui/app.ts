@@ -8,7 +8,6 @@ import type {
 } from "./types.ts";
 import { GatewayBrowserClient } from "./gateway.ts";
 import "./views/overview.ts";
-import "./views/sessions.ts";
 import "./views/projects.ts";
 import "./views/chat.ts";
 import type { CockpitChat } from "./views/chat.ts";
@@ -16,7 +15,6 @@ import type { CockpitChat } from "./views/chat.ts";
 // SVG icon helpers
 const icons = {
   overview: html`<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
-  sessions: html`<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
   projects: html`<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
   usage: html`<svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>`,
   chat: html`<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`,
@@ -26,7 +24,6 @@ type NavItem = { id: CockpitTab; label: string; icon: typeof icons.overview };
 
 const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", icon: icons.overview },
-  { id: "sessions", label: "Sessions", icon: icons.sessions },
   { id: "projects", label: "Projects", icon: icons.projects },
   { id: "chat", label: "Chat", icon: icons.chat },
   { id: "usage", label: "Usage", icon: icons.usage },
@@ -45,9 +42,6 @@ export class CockpitApp extends LitElement {
   @state() private overviewStats: OverviewStats | null = null;
   @state() private sessions: SessionSummary[] = [];
   @state() private projects: Project[] = [];
-
-  /** Session ID to open when switching to chat tab */
-  private _pendingSessionId: string | null = null;
 
   private gateway = new GatewayBrowserClient();
 
@@ -158,11 +152,6 @@ export class CockpitApp extends LitElement {
     this._syncHash();
   }
 
-  private _openSessionInChat(sessionId: string) {
-    this._pendingSessionId = sessionId;
-    this._navigate("chat");
-  }
-
   private _shortPath(path: string): string {
     return path.replace(/^\/Users\/[^/]+/, "~");
   }
@@ -194,11 +183,6 @@ export class CockpitApp extends LitElement {
       const chatEl = this.querySelector("cockpit-chat") as CockpitChat | null;
       if (chatEl && this.gateway) {
         chatEl.setGateway(this.gateway);
-        // If we have a pending session to open, load it
-        if (this._pendingSessionId) {
-          chatEl.openSession(this._pendingSessionId);
-          this._pendingSessionId = null;
-        }
       }
     }
   }
@@ -238,6 +222,21 @@ export class CockpitApp extends LitElement {
                     </button>
                   `
                 )}
+              </div>
+              <div class="nav-section">
+                <div class="nav-section__label">Resources</div>
+                <a class="nav-item" href="/roadmap.html" target="_blank">
+                  <span class="nav-item__icon">
+                    <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                  </span>
+                  <span>Roadmap</span>
+                </a>
+                <a class="nav-item" href="/changelog.html" target="_blank">
+                  <span class="nav-item__icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                  </span>
+                  <span>Changelog</span>
+                </a>
               </div>
             </div>
             <div class="sidebar__footer">
@@ -284,14 +283,6 @@ export class CockpitApp extends LitElement {
             .projectId=${this.selectedProjectId}
             .onNavigate=${(tab: CockpitTab) => this._navigate(tab)}
           ></cockpit-overview>
-        `;
-      case "sessions":
-        return html`
-          <cockpit-sessions
-            .sessions=${this.sessions}
-            .projectId=${this.selectedProjectId}
-            .onOpenSession=${(id: string) => this._openSessionInChat(id)}
-          ></cockpit-sessions>
         `;
       case "projects":
         return html`

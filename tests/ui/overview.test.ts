@@ -149,7 +149,7 @@ describe("cockpit-overview", () => {
     ) as HTMLButtonElement;
     sessionsCard.click();
 
-    expect(navigateSpy).toHaveBeenCalledWith("sessions");
+    expect(navigateSpy).toHaveBeenCalledWith("chat");
   });
 
   it("formats large token counts with K/M suffixes", async () => {

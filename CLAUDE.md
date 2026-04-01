@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — starts both Vite dev server (:5173) and gateway server (:18800) concurrently
 - `npm run dev:ui` — Vite frontend only
 - `npm run dev:gateway` — gateway server only (uses `tsx watch`)
-- `npm test` — run all tests (`vitest run`, 77 tests)
+- `npm test` — run all tests (`vitest run`, 85 tests)
 - `npm run test:watch` — tests in watch mode
 - `npx vitest run tests/gateway/session-store.test.ts` — run a single test file
 - `npm run build` — production build to `dist/`
@@ -26,10 +26,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Phase 1 (Static Cockpit)**: Complete — read-only views for overview, sessions, projects
 - **Phase 2 (Gateway + Live Chat)**: Complete — WebSocket streaming, chat-as-session-cockpit, session resume
-- **Phase 2.5 (Chat Refinements)**: Next up — markdown rendering, tool approval modal, model selector, conversation summary, entrypoint badges
+- **Phase 2.5 (Chat Refinements)**: In progress — session detail sidebar done; remaining: model selector, conversation summary, structured user messages
 - **Phase 3 (Usage Analytics)**: Planned — token breakdown by day/model/project, Bedrock cost tracking
 
-Full roadmap with checklists: `plan.html`
+Full roadmap with checklists: `roadmap.html` | Changelog: `changelog.html`
 
 ## Architecture
 
@@ -60,8 +60,7 @@ Lit web components in **light DOM** (`createRenderRoot() { return this; }`). All
 
 - `ui/app.ts` — `<cockpit-app>` shell: sidebar nav, **global project selector**, hash-based routing (`#tab/projectId`), dual WS+HTTP data fetching. Owns `selectedProjectId` state and passes it to all views.
 - `ui/gateway.ts` — `GatewayBrowserClient`: request/response matching by frame ID, event subscriptions, exponential backoff reconnection
-- `ui/views/chat.ts` — **Session cockpit**: two-panel layout (session sidebar + conversation). Project switcher, sessions grouped by day, pinned sessions (localStorage), paginated message history, streaming display with cursor, inline collapsible agent/tool blocks
-- `ui/views/sessions.ts` — sortable/filterable data table, click row -> opens in chat
+- `ui/views/chat.ts` — **Session cockpit**: three-panel layout (collapsible session sidebar + conversation + toggleable detail sidebar). Sessions grouped by day, pinned sessions (localStorage), paginated message history, streaming display with cursor, inline collapsible agent/tool blocks. Detail sidebar shows session metadata (model, tokens, duration, cache, cwd).
 - `ui/views/overview.ts` — stat cards (sessions, projects, tokens, cache)
 - `ui/views/projects.ts` — projects grouped by directory
 

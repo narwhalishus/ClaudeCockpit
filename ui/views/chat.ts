@@ -14,6 +14,23 @@ import type {
   ToolApprovalEvent,
 } from "../types.ts";
 
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
+  return String(n);
+}
+
+function formatDuration(startIso: string, endIso: string): string {
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+  if (ms < 0) return "—";
+  const secs = Math.floor(ms / 1000);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ${secs % 60}s`;
+  const hours = Math.floor(mins / 60);
+  return `${hours}h ${mins % 60}m`;
+}
+
 /** Pre-configured Marked instance for rendering assistant messages */
 const md = new Marked({
   gfm: true,
@@ -91,6 +108,8 @@ export class CockpitChat extends LitElement {
   @state() private loadingHistory = false;
   @state() private renamingSessionId: string | null = null;
   @state() private hasMoreHistory = false;
+  @state() private sidebarOpen = true;
+  @state() private detailOpen = false;
   @state() private pinnedSessionIds: Set<string> = new Set(
     JSON.parse(localStorage.getItem("pinned-sessions") ?? "[]")
   );
@@ -143,11 +162,6 @@ export class CockpitChat extends LitElement {
       this._newSession();
       this._loadSessionList();
     }
-  }
-
-  /** Public API: open a specific session (called by app shell) */
-  openSession(sessionId: string) {
-    this._selectSession(sessionId);
   }
 
   // ── Data loading ──────────────────────────────────────────────────────
@@ -328,6 +342,11 @@ export class CockpitChat extends LitElement {
     this.streaming = true;
     this.currentChatId = `chat-${Date.now()}`;
 
+    // Decode projectId to a real path so claude spawns in the right cwd
+    const cwd = this.projectId
+      ? this.projectId.replace(/-/g, "/")
+      : undefined;
+
     try {
       await this.gateway.request(
         "chat.send",
@@ -335,6 +354,7 @@ export class CockpitChat extends LitElement {
           prompt,
           chatId: this.currentChatId,
           sessionId: this.activeSessionId ?? undefined,
+          cwd,
         },
         120_000
       );
@@ -435,10 +455,17 @@ export class CockpitChat extends LitElement {
   // ── Render ────────────────────────────────────────────────────────────
 
   override render() {
+    const classes = [
+      "chat-layout",
+      this.sidebarOpen ? "" : "chat-layout--sidebar-collapsed",
+      this.detailOpen && this.activeSessionId ? "chat-layout--with-detail" : "",
+    ].filter(Boolean).join(" ");
+
     return html`
-      <div class="chat-layout">
-        ${this._renderSidebar()}
+      <div class=${classes}>
+        ${this.sidebarOpen ? this._renderSidebar() : nothing}
         ${this._renderConversation()}
+        ${this.detailOpen && this.activeSessionId ? this._renderDetailSidebar() : nothing}
       </div>
     `;
   }
@@ -538,6 +565,25 @@ export class CockpitChat extends LitElement {
   private _renderConversation() {
     return html`
       <div class="chat__main">
+        <div class="chat__toolbar">
+          <button
+            class="chat__toolbar-btn"
+            @click=${() => { this.sidebarOpen = !this.sidebarOpen; }}
+            title="${this.sidebarOpen ? "Hide sessions" : "Show sessions"}"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <div class="chat__toolbar-spacer"></div>
+          ${this.activeSessionId
+            ? html`<button
+                class="chat__toolbar-btn ${this.detailOpen ? "chat__toolbar-btn--active" : ""}"
+                @click=${() => { this.detailOpen = !this.detailOpen; }}
+                title="${this.detailOpen ? "Hide session info" : "Show session info"}"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              </button>`
+            : nothing}
+        </div>
         <div class="chat__conversation">
           ${this.hasMoreHistory
             ? html`
@@ -601,6 +647,95 @@ export class CockpitChat extends LitElement {
           </div>
         </div>
       </div>
+    `;
+  }
+
+  private _renderDetailSidebar() {
+    const session = this.sessions.find((s) => s.sessionId === this.activeSessionId);
+    if (!session) return nothing;
+
+    const displayTitle = session.customTitle || session.firstPrompt || session.sessionId.slice(0, 8) + "...";
+    const shortPath = session.projectPath.replace(/^\/Users\/[^/]+/, "~");
+    const shortCwd = session.cwd.replace(/^\/Users\/[^/]+/, "~");
+
+    return html`
+      <aside class="chat__detail">
+        <div class="chat__detail-header">
+          <span class="chat__detail-header-title">Session Info</span>
+          <button
+            class="chat__toolbar-btn"
+            @click=${() => { this.detailOpen = false; }}
+            title="Close"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="chat__detail-body">
+          <div class="chat__detail-section">
+            <div class="chat__detail-title">${displayTitle}</div>
+          </div>
+
+          <div class="chat__detail-section">
+            <div class="chat__detail-row">
+              <span class="chat__detail-label">Model</span>
+              <span class="chat__detail-value chat__detail-value--mono">${session.model.replace("claude-", "")}</span>
+            </div>
+            <div class="chat__detail-row">
+              <span class="chat__detail-label">Messages</span>
+              <span class="chat__detail-value">${session.messageCount}</span>
+            </div>
+            <div class="chat__detail-row">
+              <span class="chat__detail-label">Duration</span>
+              <span class="chat__detail-value">${formatDuration(session.startedAt, session.lastMessageAt)}</span>
+            </div>
+          </div>
+
+          <div class="chat__detail-section">
+            <div class="chat__detail-section-title">Tokens</div>
+            <div class="chat__detail-row">
+              <span class="chat__detail-label">Input</span>
+              <span class="chat__detail-value chat__detail-value--mono">${formatTokens(session.totalInputTokens)}</span>
+            </div>
+            <div class="chat__detail-row">
+              <span class="chat__detail-label">Output</span>
+              <span class="chat__detail-value chat__detail-value--mono">${formatTokens(session.totalOutputTokens)}</span>
+            </div>
+          </div>
+
+          ${session.totalCacheReadTokens > 0 || session.totalCacheCreationTokens > 0
+            ? html`
+              <div class="chat__detail-section">
+                <div class="chat__detail-section-title">Cache</div>
+                <div class="chat__detail-row">
+                  <span class="chat__detail-label">Read</span>
+                  <span class="chat__detail-value chat__detail-value--mono">${formatTokens(session.totalCacheReadTokens)}</span>
+                </div>
+                <div class="chat__detail-row">
+                  <span class="chat__detail-label">Creation</span>
+                  <span class="chat__detail-value chat__detail-value--mono">${formatTokens(session.totalCacheCreationTokens)}</span>
+                </div>
+              </div>`
+            : nothing}
+
+          <div class="chat__detail-section">
+            <div class="chat__detail-section-title">Location</div>
+            <div class="chat__detail-row">
+              <span class="chat__detail-label">Project</span>
+              <span class="chat__detail-value chat__detail-value--path" title=${session.projectPath}>${shortPath}</span>
+            </div>
+            <div class="chat__detail-row">
+              <span class="chat__detail-label">CWD</span>
+              <span class="chat__detail-value chat__detail-value--path" title=${session.cwd}>${shortCwd}</span>
+            </div>
+          </div>
+
+          <div class="chat__detail-section chat__detail-section--id">
+            <span class="chat__detail-label">Session ID</span>
+            <span class="chat__detail-value chat__detail-value--mono chat__detail-value--id">${session.sessionId}</span>
+          </div>
+        </div>
+      </aside>
     `;
   }
 

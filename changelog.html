@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClaudeCockpit — Changelog</title>
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    :root {
+      --bg: #0e1015;
+      --bg-elevated: #191c24;
+      --bg-hover: #1f2330;
+      --card: #161920;
+      --text: #d4d4d8;
+      --text-strong: #f4f4f5;
+      --muted: #838387;
+      --border: #1e2028;
+      --border-strong: #2e3040;
+      --accent: #da7756;
+      --accent-subtle: rgba(218, 119, 86, 0.1);
+      --ok: #22c55e;
+      --ok-subtle: rgba(34, 197, 94, 0.08);
+      --info: #3b82f6;
+      --info-subtle: rgba(59, 130, 246, 0.08);
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 400 15px/1.7 var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { max-width: 900px; margin: 0 auto; padding: 48px 32px 96px; }
+    h1 {
+      font-size: 32px; font-weight: 700; letter-spacing: -0.03em;
+      color: var(--text-strong); margin: 0 0 8px;
+    }
+    h1 span { color: var(--accent); }
+    .subtitle { color: var(--muted); font-size: 15px; margin: 0 0 40px; }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    code {
+      font-family: var(--mono); font-size: 13px;
+      background: var(--bg-elevated); padding: 2px 6px;
+      border-radius: 4px; border: 1px solid var(--border);
+    }
+
+    /* Release cards */
+    .release {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px 28px;
+      margin: 20px 0; position: relative; overflow: hidden;
+    }
+    .release::before {
+      content: ""; position: absolute; top: 0; left: 0;
+      width: 4px; height: 100%; border-radius: 4px 0 0 4px;
+    }
+    .release--latest::before { background: var(--accent); }
+    .release--stable::before { background: var(--ok); }
+
+    .release__head {
+      display: flex; align-items: baseline; gap: 12px;
+      margin-bottom: 4px;
+    }
+    .release__version {
+      font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
+      color: var(--text-strong); font-family: var(--mono);
+    }
+    .release__name {
+      font-size: 15px; font-weight: 600; color: var(--text);
+    }
+    .release__date {
+      font-size: 13px; color: var(--muted); font-family: var(--mono);
+      margin-bottom: 16px;
+    }
+    .release__badge {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 3px 10px;
+      border-radius: 9999px; white-space: nowrap; margin-left: auto;
+    }
+    .badge--latest { background: var(--accent-subtle); color: var(--accent); }
+    .badge--stable { background: var(--ok-subtle); color: var(--ok); }
+
+    /* Sections within a release */
+    .release__section {
+      margin-top: 12px;
+    }
+    .release__section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin: 0 0 6px;
+    }
+    .release__list {
+      list-style: none; padding: 0; margin: 0;
+    }
+    .release__list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 4px 0; font-size: 14px; color: var(--text);
+    }
+    .release__list li::before {
+      content: "";
+      flex-shrink: 0; width: 6px; height: 6px; margin-top: 8px;
+      border-radius: 50%;
+      background: var(--border-strong);
+    }
+
+    /* Commit hashes */
+    .hash {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--muted); margin-left: 4px;
+    }
+
+    .updated {
+      margin-top: 48px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Change<span>log</span></h1>
+  <p class="subtitle">
+    Release history for ClaudeCockpit. Versions follow phase milestones.
+    <br><a href="/roadmap.html">Roadmap</a>
+  </p>
+
+  <!-- ============================================================ -->
+
+  <!-- v0.3.0 -->
+  <div class="release release--latest">
+    <div class="release__head">
+      <span class="release__version">v0.3.0</span>
+      <span class="release__name">Session Detail Sidebar</span>
+      <span class="release__badge badge--latest">Latest</span>
+    </div>
+    <div class="release__date">2026-03-31</div>
+
+    <div class="release__section">
+      <div class="release__section-title">Added</div>
+      <ul class="release__list">
+        <li>Session detail sidebar — toggleable right panel showing model, tokens, duration, cache stats, project path, cwd, and session ID</li>
+        <li>Collapsible left sidebar — hamburger toggle hides/shows the session browser</li>
+        <li>Info icon toggle — appears when a session is active, opens/closes detail panel</li>
+        <li>Three-panel CSS grid layout with composable modifier classes</li>
+        <li>Changelog page (<code>changelog.html</code>) with versioned release history</li>
+        <li>Roadmap + Changelog links in sidebar nav under Resources</li>
+        <li>8 new tests for detail sidebar rendering, toggle states, cache section visibility</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Removed</div>
+      <ul class="release__list">
+        <li>Sessions tab — redundant with chat sidebar session browser</li>
+        <li><code>ui/views/sessions.ts</code> — sortable data table component deleted</li>
+        <li><code>SortDir</code> / <code>SortState</code> types removed from <code>ui/types.ts</code></li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Fixed</div>
+      <ul class="release__list">
+        <li>New sessions now spawn in the selected project's directory instead of <code>$HOME</code></li>
+        <li>Topbar height mismatch (<code>--shell-topbar-height: 52px</code> vs <code>min-height: 58px</code>) caused 6px overlap into content area, making toolbar icons appear off-center</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Changed</div>
+      <ul class="release__list">
+        <li>Overview "Total Sessions" card now navigates to Chat tab</li>
+        <li><code>plan.html</code> renamed to <code>roadmap.html</code></li>
+        <li>Test count: 77 &rarr; 85</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- v0.2.0 -->
+  <div class="release release--stable">
+    <div class="release__head">
+      <span class="release__version">v0.2.0</span>
+      <span class="release__name">Gateway + Live Chat</span>
+      <span class="release__badge badge--stable">Phase 2</span>
+    </div>
+    <div class="release__date">2026-03-31</div>
+
+    <div class="release__section">
+      <div class="release__section-title">Added</div>
+      <ul class="release__list">
+        <li>Global project selector with URL hash routing (<code>#tab/projectId</code>) <span class="hash">a6efb1e</span></li>
+        <li>Project-scoped overview stats in gateway <span class="hash">ce119f4</span></li>
+        <li>Interactive mode with <code>--input-format stream-json</code> control protocol <span class="hash">f63c7d5</span></li>
+        <li>Tool approval banner — approve/deny tool use via WebSocket <span class="hash">cf22215</span></li>
+        <li>Markdown rendering for assistant messages with <code>marked</code> <span class="hash">818ae32</span></li>
+        <li>Collapsible thinking blocks (<code>&lt;details&gt;</code>) for extended thinking content</li>
+        <li>Session titles — <code>custom-title</code> JSONL parsing, inline rename (double-click), auto-generation</li>
+        <li>Session pinning — star toggle, persisted in localStorage</li>
+        <li>Paginated message history — last 50 messages, "load older" button</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Fixed</div>
+      <ul class="release__list">
+        <li>Interactive mode: close stdin on result so process exits cleanly <span class="hash">502c2e4</span></li>
+        <li>Shrink-wrap user message bubbles to text content <span class="hash">b0454a6</span></li>
+        <li>Trim user message content at render time <span class="hash">1c881c9</span></li>
+        <li>Empty state centering in conversation panel <span class="hash">818ae32</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- v0.1.0 -->
+  <div class="release release--stable">
+    <div class="release__head">
+      <span class="release__version">v0.1.0</span>
+      <span class="release__name">Static Cockpit</span>
+      <span class="release__badge badge--stable">Phase 1</span>
+    </div>
+    <div class="release__date">2026-03-31</div>
+
+    <div class="release__section">
+      <div class="release__section-title">Added</div>
+      <ul class="release__list">
+        <li>Vite + Lit + TypeScript project scaffold <span class="hash">c750f04</span></li>
+        <li>CSS design system — dark theme, shell grid layout, component styles <span class="hash">2b661fe</span></li>
+        <li>Gateway services — JSONL parser, session summarizer, CLI spawner <span class="hash">4a1bccc</span></li>
+        <li>Gateway server — HTTP API + WebSocket on port 18800 <span class="hash">54fb97d</span></li>
+        <li>App shell with sidebar nav, hash-based tab routing <span class="hash">3091d46</span></li>
+        <li>Overview view — stat cards (sessions, projects, tokens, cache)</li>
+        <li>Sessions view — sortable/filterable data table</li>
+        <li>Projects view — grouped by codebase directory</li>
+        <li>Chat view — two-panel session cockpit (sidebar + conversation)</li>
+        <li>WebSocket browser client with exponential backoff reconnection</li>
+        <li>Streaming message deduplication (same <code>message.id</code>)</li>
+        <li>Sidechain / tool_result / interrupted message filtering</li>
+        <li>48 tests — gateway unit tests + UI component tests <span class="hash">5203f56</span></li>
+        <li>Rebranded from OpenClaw scaffold to ClaudeCockpit <span class="hash">fc6b0b1</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="updated">Last updated: 2026-03-31</p>
+
+</div>
+</body>
+</html>

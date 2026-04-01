@@ -81,14 +81,14 @@ describe("cockpit-app hash parsing", () => {
   });
 
   it("restores tab from hash on connect", async () => {
-    window.location.hash = "sessions";
+    window.location.hash = "chat";
     const el = document.createElement("cockpit-app") as CockpitApp;
     await renderEl(el);
     await setProps(el, { loading: false });
 
     // The topbar title should reflect the active tab
     const title = el.querySelector(".topbar__title");
-    expect(title?.textContent?.trim()).toBe("Sessions");
+    expect(title?.textContent?.trim()).toBe("Chat");
   });
 
   it("restores tab and projectId from hash", async () => {

@@ -129,13 +129,5 @@ export interface ToolApprovalEvent {
 }
 
 /** Active tab in the cockpit */
-export type CockpitTab = "overview" | "sessions" | "projects" | "chat" | "usage";
+export type CockpitTab = "overview" | "projects" | "chat" | "usage";
 
-/** Sort direction */
-export type SortDir = "asc" | "desc";
-
-/** Column sort state */
-export interface SortState {
-  column: string;
-  dir: SortDir;
-}

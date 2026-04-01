@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ClaudeCockpit — Plan</title>
+  <title>ClaudeCockpit — Roadmap</title>
   <link rel="icon" href="/favicon.ico" />
   <style>
     :root {
@@ -192,7 +192,7 @@
 │  localhost:5173          │                  │  Node.js :18800   │
 │                         │  /ws (WebSocket) │                   │
 │  Chat = Session Cockpit │ &lt;═══════════════&gt;│  req/res/event    │
-│  Two-panel layout       │  streaming chunks│  frame protocol   │
+│  Three-panel layout     │  streaming chunks│  frame protocol   │
 └─────────────────────────┘                  └─────────┬─────────┘
                                                        │ spawns / reads
                                               ┌────────┴────────┐
@@ -268,7 +268,7 @@
       <li><span class="check check--todo"></span> Model selector in chat input area</li>
       <li><span class="check check--todo"></span> Conversation summary — on-demand "catch me up" for a session</li>
       <li><span class="check check--todo"></span> Structured user message rendering — parse CC XML tags into styled blocks</li>
-      <li><span class="check check--todo"></span> Session detail sidebar — right-hand panel in chat view with session metadata</li>
+      <li><span class="check check--done">&#10003;</span> Session detail sidebar — toggleable right panel with metadata (model, tokens, duration, cache, cwd). Sessions tab removed, both sidebars collapsible.</li>
       <li><span class="check check--done">&#10003;</span> Tool approval banner — bidirectional control protocol via <code>--input-format stream-json</code></li>
       <li><span class="check check--done">&#10003;</span> Global project selector — app shell sidebar, URL routing, project-scoped API</li>
       <li><span class="check check--done">&#10003;</span> Markdown rendering + collapsible thinking blocks</li>
@@ -329,6 +329,15 @@
     <li>Subagents are inlined in parent session (not separate JSONL files) — shown as collapsible blocks</li>
   </ul>
 
+  <h3>Three-panel chat with collapsible sidebars (decided 2026-03-31)</h3>
+  <p>The Sessions tab was redundant with the chat sidebar — both showed the same session list. Replaced with a <strong>session detail sidebar</strong> (right panel) toggled via an info icon. Both sidebars are collapsible: hamburger icon hides the left session browser, info icon toggles the right metadata panel.</p>
+  <ul>
+    <li>Layout: <code>260px 1fr</code> → <code>260px 1fr 280px</code> (when detail open) via CSS grid column overrides</li>
+    <li>Detail panel shows: title, model, message count, duration, input/output tokens, cache stats, project path, cwd, session ID</li>
+    <li>Sessions tab, <code>ui/views/sessions.ts</code>, <code>SortDir</code>/<code>SortState</code> types all removed — no dead code kept</li>
+    <li>New sessions now spawn <code>claude -p</code> with the selected project's decoded path as <code>cwd</code></li>
+  </ul>
+
   <!-- ============================================================ -->
   <h2>Tech Stack</h2>
   <ul>
@@ -380,11 +389,11 @@
 npm run dev          # Start both UI (:5173) and gateway (:18800)
 npm run dev:ui       # Vite dev server only
 npm run dev:gateway  # Gateway server only
-npm test             # Run all 77 tests
+npm test             # Run all 85 tests
 npm run test:watch   # Tests in watch mode
 npm run build        # Production build → dist/</pre>
 
-  <p class="updated">Last updated: 2026-03-31 — Phase 1 + Phase 2 complete, Phase 2.5 in progress, 77 tests passing</p>
+  <p class="updated">Last updated: 2026-03-31 — Phase 1 + Phase 2 complete, Phase 2.5 in progress (6/9 items done), 85 tests passing</p>
 
 </div>
 </body>

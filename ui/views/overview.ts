@@ -62,7 +62,7 @@ export class CockpitOverview extends LitElement {
     const cards: StatCard[] = [
       {
         kind: "sessions",
-        tab: "sessions",
+        tab: "chat",
         label: "Total Sessions",
         value: String(s.totalSessions),
         hint: `${s.sessionsToday} today`,

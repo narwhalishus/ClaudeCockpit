@@ -447,3 +447,152 @@ describe("cockpit-chat session titles", () => {
     expect(restoredTitle!.textContent!.trim()).toBe("Keep this name");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Detail sidebar + collapsible panels
+// ---------------------------------------------------------------------------
+
+const MOCK_SESSION = {
+  sessionId: "abc-123-def",
+  projectId: "proj",
+  projectPath: "/Users/bryao/Code/MyProject",
+  cwd: "/Users/bryao/Code/MyProject",
+  startedAt: new Date(Date.now() - 3600_000).toISOString(),
+  lastMessageAt: new Date().toISOString(),
+  messageCount: 12,
+  model: "claude-opus-4-6",
+  version: "2.1.87",
+  totalInputTokens: 45_200,
+  totalOutputTokens: 12_800,
+  totalCacheReadTokens: 30_000,
+  totalCacheCreationTokens: 5_000,
+  firstPrompt: "Fix the auth bug",
+};
+
+describe("cockpit-chat detail sidebar", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("does not render detail sidebar when no session is active", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, { sessions: [MOCK_SESSION], detailOpen: true });
+
+    const detail = el.querySelector(".chat__detail");
+    expect(detail).toBeNull();
+  });
+
+  it("renders detail sidebar when detailOpen and activeSessionId are set", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      detailOpen: true,
+    });
+
+    const detail = el.querySelector(".chat__detail");
+    expect(detail).not.toBeNull();
+    expect(el.querySelector(".chat-layout")!.classList.contains("chat-layout--with-detail")).toBe(true);
+  });
+
+  it("shows correct model and token values", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      detailOpen: true,
+    });
+
+    const values = Array.from(el.querySelectorAll(".chat__detail-value")).map(
+      (v) => v.textContent!.trim()
+    );
+    // Model should strip "claude-" prefix
+    expect(values).toContain("opus-4-6");
+    // Tokens: 45200 -> 45.2K, 12800 -> 12.8K
+    expect(values).toContain("45.2K");
+    expect(values).toContain("12.8K");
+  });
+
+  it("shows cache section when cache tokens are present", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      detailOpen: true,
+    });
+
+    const sectionTitles = Array.from(el.querySelectorAll(".chat__detail-section-title")).map(
+      (t) => t.textContent!.trim()
+    );
+    expect(sectionTitles).toContain("Cache");
+  });
+
+  it("hides cache section when cache tokens are zero", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [{
+        ...MOCK_SESSION,
+        totalCacheReadTokens: 0,
+        totalCacheCreationTokens: 0,
+      }],
+      activeSessionId: "abc-123-def",
+      detailOpen: true,
+    });
+
+    const sectionTitles = Array.from(el.querySelectorAll(".chat__detail-section-title")).map(
+      (t) => t.textContent!.trim()
+    );
+    expect(sectionTitles).not.toContain("Cache");
+  });
+});
+
+describe("cockpit-chat sidebar toggle", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("renders left sidebar by default", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    expect(el.querySelector(".chat__sidebar")).not.toBeNull();
+  });
+
+  it("hides left sidebar when sidebarOpen is false", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, { sidebarOpen: false });
+
+    expect(el.querySelector(".chat__sidebar")).toBeNull();
+    expect(el.querySelector(".chat-layout")!.classList.contains("chat-layout--sidebar-collapsed")).toBe(true);
+  });
+
+  it("shows info toggle button only when a session is active", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    // No session active — should only have the hamburger button
+    const buttons = el.querySelectorAll(".chat__toolbar-btn");
+    expect(buttons.length).toBe(1);
+
+    // Set active session
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+    });
+
+    const buttonsWithSession = el.querySelectorAll(".chat__toolbar-btn");
+    expect(buttonsWithSession.length).toBe(2);
+  });
+});
