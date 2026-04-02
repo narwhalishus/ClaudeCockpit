@@ -499,7 +499,7 @@ describe("cockpit-chat detail sidebar", () => {
     expect(el.querySelector(".chat-layout")!.classList.contains("chat-layout--with-detail")).toBe(true);
   });
 
-  it("shows correct model and token values", async () => {
+  it("shows correct model selector and token values", async () => {
     const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
@@ -507,13 +507,18 @@ describe("cockpit-chat detail sidebar", () => {
       sessions: [MOCK_SESSION],
       activeSessionId: "abc-123-def",
       detailOpen: true,
+      selectedModel: "claude-opus-4-6",
     });
 
+    // Model is now a <select>, not a text span
+    const select = el.querySelector(".chat__detail-select") as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.querySelector("option[selected]")!.textContent!.trim()).toBe("Opus 4.6");
+
+    // Token values still in .chat__detail-value spans
     const values = Array.from(el.querySelectorAll(".chat__detail-value")).map(
       (v) => v.textContent!.trim()
     );
-    // Model should strip "claude-" prefix
-    expect(values).toContain("opus-4-6");
     // Tokens: 45200 -> 45.2K, 12800 -> 12.8K
     expect(values).toContain("45.2K");
     expect(values).toContain("12.8K");
@@ -553,6 +558,72 @@ describe("cockpit-chat detail sidebar", () => {
       (t) => t.textContent!.trim()
     );
     expect(sectionTitles).not.toContain("Cache");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Model selector in detail sidebar
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat model selector", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("renders model selector with 3 options in detail sidebar", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      detailOpen: true,
+      selectedModel: "claude-opus-4-6",
+    });
+
+    const select = el.querySelector(".chat__detail-select") as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    const options = select.querySelectorAll("option");
+    expect(options.length).toBe(3);
+    expect(options[0].value).toBe("claude-opus-4-6");
+    expect(options[1].value).toBe("claude-sonnet-4-6");
+    expect(options[2].value).toBe("claude-haiku-4-5");
+  });
+
+  it("reflects session model as selected option", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [{ ...MOCK_SESSION, model: "claude-sonnet-4-6" }],
+      activeSessionId: "abc-123-def",
+      detailOpen: true,
+      selectedModel: "claude-sonnet-4-6",
+    });
+
+    const select = el.querySelector(".chat__detail-select") as HTMLSelectElement;
+    const selectedOption = select.querySelector("option[selected]") as HTMLOptionElement;
+    expect(selectedOption).not.toBeNull();
+    expect(selectedOption.value).toBe("claude-sonnet-4-6");
+  });
+
+  it("changing selector updates selectedModel state", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      sessions: [MOCK_SESSION],
+      activeSessionId: "abc-123-def",
+      detailOpen: true,
+      selectedModel: "claude-opus-4-6",
+    });
+
+    const select = el.querySelector(".chat__detail-select") as HTMLSelectElement;
+    select.value = "claude-haiku-4-5";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
+
+    expect((el as any).selectedModel).toBe("claude-haiku-4-5");
   });
 });
 

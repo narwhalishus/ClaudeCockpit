@@ -9,6 +9,7 @@ import type {
 import { GatewayBrowserClient } from "./gateway.ts";
 import "./views/overview.ts";
 import "./views/chat.ts";
+import "./views/settings.ts";
 import type { CockpitChat } from "./views/chat.ts";
 
 // SVG icon helpers
@@ -16,6 +17,7 @@ const icons = {
   overview: html`<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
   usage: html`<svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>`,
   chat: html`<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`,
+  settings: html`<svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
 };
 
 type NavItem = { id: CockpitTab; label: string; icon: typeof icons.overview };
@@ -24,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", icon: icons.overview },
   { id: "chat", label: "Chat", icon: icons.chat },
   { id: "usage", label: "Usage", icon: icons.usage },
+  { id: "settings", label: "Settings", icon: icons.settings },
 ];
 
 @customElement("cockpit-app")
@@ -284,6 +287,8 @@ export class CockpitApp extends LitElement {
             .onNavigate=${(tab: CockpitTab) => this._navigate(tab)}
           ></cockpit-overview>
         `;
+      case "settings":
+        return html`<cockpit-settings></cockpit-settings>`;
       default:
         return html`<p>Unknown tab</p>`;
     }

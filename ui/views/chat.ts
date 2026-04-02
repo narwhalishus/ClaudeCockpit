@@ -15,6 +15,12 @@ import type {
 } from "../types.ts";
 import { formatTokens, formatRelativeTime, formatDuration } from "../utils/format.ts";
 
+const MODEL_OPTIONS = [
+  { value: "claude-opus-4-6", label: "Opus 4.6" },
+  { value: "claude-sonnet-4-6", label: "Sonnet 4.6" },
+  { value: "claude-haiku-4-5", label: "Haiku 4.5" },
+];
+
 /** Pre-configured Marked instance for rendering assistant messages */
 const md = new Marked({
   gfm: true,
@@ -96,6 +102,7 @@ export class CockpitChat extends LitElement {
   @state() private summaryContent = "";
   @state() private summarizing = false;
   @state() private summaryVisible = false;
+  @state() private selectedModel: string | null = null;
 
   private gateway: GatewayBrowserClient | null = null;
   private unsubscribers: (() => void)[] = [];
@@ -239,6 +246,8 @@ export class CockpitChat extends LitElement {
     this.summaryVisible = false;
     this.summaryContent = "";
     this.summarizing = false;
+    const session = this.sessions.find((s) => s.sessionId === sessionId);
+    this.selectedModel = session?.model ?? null;
     this._loadSessionMessages(sessionId);
   }
 
@@ -251,6 +260,7 @@ export class CockpitChat extends LitElement {
     this.summaryVisible = false;
     this.summaryContent = "";
     this.summarizing = false;
+    this.selectedModel = null;
   }
 
   private _togglePin(sessionId: string) {
@@ -357,6 +367,8 @@ export class CockpitChat extends LitElement {
       ? this.projectId.replace(/-/g, "/")
       : undefined;
 
+    const model = this.selectedModel ?? this._getDefaultModel() ?? undefined;
+
     try {
       await this.gateway.request(
         "chat.send",
@@ -365,6 +377,7 @@ export class CockpitChat extends LitElement {
           chatId: this.currentChatId,
           sessionId: this.activeSessionId ?? undefined,
           cwd,
+          model,
         },
         120_000
       );
@@ -380,6 +393,17 @@ export class CockpitChat extends LitElement {
         .request("chat.abort", { chatId: this.currentChatId })
         .catch((err: unknown) => console.error("Abort failed:", err));
     }
+  }
+
+  private _getDefaultModel(): string | null {
+    try {
+      const raw = localStorage.getItem("cockpit-settings");
+      if (raw) {
+        const settings = JSON.parse(raw);
+        return settings.defaultModel || null;
+      }
+    } catch { /* ignore */ }
+    return null;
   }
 
   // ── Session summary ────────────────────────────────────────────────────
@@ -729,7 +753,18 @@ export class CockpitChat extends LitElement {
           <div class="chat__detail-section">
             <div class="chat__detail-row">
               <span class="chat__detail-label">Model</span>
-              <span class="chat__detail-value chat__detail-value--mono">${session.model.replace("claude-", "")}</span>
+              <select
+                class="chat__detail-select"
+                @change=${(e: Event) => {
+                  this.selectedModel = (e.target as HTMLSelectElement).value;
+                }}
+              >
+                ${MODEL_OPTIONS.map(
+                  (opt) => html`
+                    <option value=${opt.value} ?selected=${opt.value === this.selectedModel}>${opt.label}</option>
+                  `
+                )}
+              </select>
             </div>
             <div class="chat__detail-row">
               <span class="chat__detail-label">Messages</span>
