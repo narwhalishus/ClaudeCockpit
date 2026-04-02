@@ -9,6 +9,7 @@
 }
 
 .ov-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -18,12 +19,22 @@
   border-radius: var(--radius-lg);
   cursor: pointer;
   text-align: left;
+  overflow: hidden;
   transition:
-    border-color var(--duration-fast) ease,
-    background var(--duration-fast) ease,
-    transform var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
+    border-color var(--duration-normal) ease,
+    background var(--duration-normal) ease,
+    transform var(--duration-normal) var(--ease-spring),
+    box-shadow var(--duration-normal) ease;
   animation: rise 0.3s var(--ease-out) both;
+}
+
+.ov-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.025), transparent 40%);
+  pointer-events: none;
 }
 
 .ov-card:hover {
@@ -41,17 +52,55 @@
   color: var(--muted);
 }
 
+.ov-card__value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
 .ov-card__value {
-  font-size: 26px;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text-strong);
-  font-family: var(--mono);
+}
+
+.ov-card__trend {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ok);
 }
 
 .ov-card__hint {
   font-size: 12px;
   color: var(--muted);
+}
+
+/* Per-kind stat card accents */
+.ov-card[data-kind="sessions"] {
+  border-left: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 2%, var(--card));
+}
+.ov-card[data-kind="projects"] {
+  border-left: 2px solid var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 2%, var(--card));
+}
+.ov-card[data-kind="tokens"] {
+  border-left: 2px solid var(--info);
+  background: color-mix(in srgb, var(--info) 2%, var(--card));
+}
+.ov-card[data-kind="cost"] {
+  border-left: 2px solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 2%, var(--card));
+}
+.ov-card[data-kind="uptime"] {
+  border-left: 2px solid var(--ok);
+  background: color-mix(in srgb, var(--ok) 2%, var(--card));
+}
+.ov-card[data-kind="avg-tokens"] {
+  border-left: 2px solid var(--muted);
+  background: color-mix(in srgb, var(--muted) 2%, var(--card));
 }
 
 /* ===========================================
@@ -63,7 +112,8 @@
 }
 
 .ov-recent__title {
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   font-weight: 650;
   color: var(--text-strong);
   margin: 0 0 12px;
@@ -93,6 +143,7 @@
 
 .ov-recent__row:hover {
   background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .ov-recent__key {
@@ -251,13 +302,25 @@
   opacity: 0.5;
 }
 
+.empty-state__icon--logo {
+  font-size: unset;
+  opacity: 1;
+  animation: gentle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
 .empty-state__text {
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   font-weight: 500;
 }
 
 .empty-state__hint {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted-strong);
 }
 
@@ -280,7 +343,8 @@
   transition:
     background var(--duration-fast) ease,
     border-color var(--duration-fast) ease,
-    color var(--duration-fast) ease;
+    color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-spring);
 }
 
 .btn:hover {
@@ -298,6 +362,14 @@
 .btn--primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn--primary:active {
+  transform: scale(0.97);
 }
 
 /* ===========================================
@@ -455,16 +527,23 @@
   padding: 8px 8px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--duration-fast) ease;
+  border: 1px solid transparent;
+  transition:
+    background var(--duration-fast) ease,
+    border-color var(--duration-normal) ease,
+    box-shadow var(--duration-normal) ease;
 }
 
 .chat__session-item:hover {
   background: var(--bg-hover);
+  border-color: color-mix(in srgb, var(--accent) 15%, transparent);
+  box-shadow: 0 0 12px rgba(218, 119, 86, 0.06);
 }
 
 .chat__session-item--active {
   background: var(--accent-subtle);
   border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .chat__session-item-main {
@@ -678,14 +757,48 @@
 
 /* Code blocks */
 .markdown-body pre {
+  position: relative;
   margin: 0.6em 0;
   padding: 12px 14px;
   background: var(--bg);
   border: 1px solid var(--border);
+  border-top: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border));
   border-radius: var(--radius-sm);
   overflow-x: auto;
   scrollbar-width: none;
 }
+
+/* Language label on code blocks */
+.markdown-body pre > code[class*="language-"]::before {
+  position: absolute;
+  top: 0;
+  right: 8px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.6;
+  padding: 2px 6px;
+}
+
+.markdown-body pre > code.language-typescript::before { content: "ts"; }
+.markdown-body pre > code.language-javascript::before { content: "js"; }
+.markdown-body pre > code.language-python::before { content: "py"; }
+.markdown-body pre > code.language-bash::before { content: "sh"; }
+.markdown-body pre > code.language-shell::before { content: "sh"; }
+.markdown-body pre > code.language-sh::before { content: "sh"; }
+.markdown-body pre > code.language-css::before { content: "css"; }
+.markdown-body pre > code.language-html::before { content: "html"; }
+.markdown-body pre > code.language-json::before { content: "json"; }
+.markdown-body pre > code.language-yaml::before { content: "yaml"; }
+.markdown-body pre > code.language-rust::before { content: "rust"; }
+.markdown-body pre > code.language-go::before { content: "go"; }
+.markdown-body pre > code.language-sql::before { content: "sql"; }
+.markdown-body pre > code.language-markdown::before { content: "md"; }
+.markdown-body pre > code.language-tsx::before { content: "tsx"; }
+.markdown-body pre > code.language-jsx::before { content: "jsx"; }
 
 .markdown-body pre::-webkit-scrollbar { display: none; }
 
@@ -1342,7 +1455,8 @@
 }
 
 .settings__section-title {
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   font-weight: 650;
   color: var(--text-strong);
   margin: 0 0 16px;
@@ -1390,4 +1504,83 @@
   font-size: 12px;
   color: var(--muted);
   margin-top: 6px;
+}
+
+/* ===========================================
+   Chart Card Patterns (Phase 3 prep)
+   =========================================== */
+
+.card--chart {
+  grid-column: span 2;
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.card--chart__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card--chart__title {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.card--chart__canvas {
+  width: 100%;
+  min-height: 200px;
+}
+
+.card--breakdown {
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.card--breakdown__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.card--breakdown__bar-label {
+  font-size: var(--text-sm);
+  color: var(--text);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.card--breakdown__bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.card--breakdown__bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--duration-slow) var(--ease-out);
+}
+
+.card--breakdown__bar-value {
+  font-size: var(--text-sm);
+  font-family: var(--mono);
+  color: var(--muted);
+  min-width: 48px;
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .card--chart { grid-column: span 1; }
 }

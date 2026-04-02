@@ -9,6 +9,7 @@ type StatCard = {
   label: string;
   value: string;
   hint: string;
+  trend?: string;
 };
 
 @customElement("cockpit-overview")
@@ -66,6 +67,7 @@ export class CockpitOverview extends LitElement {
         label: "Total Sessions",
         value: String(s.totalSessions),
         hint: `${s.sessionsToday} today`,
+        trend: s.sessionsToday > 0 ? `+${s.sessionsToday}` : undefined,
       },
       {
         kind: "projects",
@@ -112,7 +114,11 @@ export class CockpitOverview extends LitElement {
           (c) => html`
             <button class="ov-card" data-kind=${c.kind} @click=${() => this.onNavigate(c.tab)}>
               <span class="ov-card__label">${c.label}</span>
-              <span class="ov-card__value">${c.value}</span>
+              <span class="ov-card__value-row">
+                <span class="ov-card__value">${c.value}</span>${c.trend
+                  ? html`<span class="ov-card__trend">${c.trend}</span>`
+                  : nothing}
+              </span>
               <span class="ov-card__hint">${c.hint}</span>
             </button>
           `

@@ -809,12 +809,20 @@ export class CockpitChat extends LitElement {
           ${this.messages.length === 0 && !this.loadingHistory
             ? html`
                 <div class="empty-state">
-                  <div class="empty-state__icon">&#9997;</div>
+                  <div class="empty-state__icon empty-state__icon--logo">
+                    <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
+                      <circle cx="24" cy="24" r="22" stroke="var(--accent)" stroke-width="1.5" opacity="0.3"/>
+                      <path d="M24 14c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm-1 15.5l-4.5-4.5 1.41-1.41L23 26.67l6.09-6.08L30.5 22 23 29.5z" fill="var(--accent)" opacity="0.6"/>
+                    </svg>
+                  </div>
                   <div class="empty-state__text">
                     ${this.activeSessionId
                       ? "No messages in this session"
                       : "Start a new conversation or select a session"}
                   </div>
+                  ${!this.activeSessionId
+                    ? html`<div class="empty-state__hint">Type a message below or pick a session from the sidebar</div>`
+                    : nothing}
                 </div>
               `
             : nothing}
