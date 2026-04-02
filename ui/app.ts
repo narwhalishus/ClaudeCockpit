@@ -44,6 +44,7 @@ export class CockpitApp extends LitElement {
 
   private gateway = new GatewayBrowserClient();
   private _unsubChatClose?: () => void;
+  private _pollTimer?: ReturnType<typeof setInterval>;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -64,6 +65,11 @@ export class CockpitApp extends LitElement {
     // Re-fetch stats when a chat session completes (updates cost card, etc.)
     this._unsubChatClose = this.gateway.on("chat.close", () => this._refetchData());
 
+    // Poll for fresh stats every 30s (keeps cost card, token counts, etc. current)
+    this._pollTimer = setInterval(() => {
+      if (this.gateway.connected) this._refetchData();
+    }, 30_000);
+
     // Also fetch via HTTP as fallback (in case WS takes a moment)
     this._fetchViaHttp();
   }
@@ -72,6 +78,7 @@ export class CockpitApp extends LitElement {
     super.disconnectedCallback();
     window.removeEventListener("hashchange", this._onHashChange);
     this._unsubChatClose?.();
+    clearInterval(this._pollTimer);
     this.gateway.disconnect();
   }
 
