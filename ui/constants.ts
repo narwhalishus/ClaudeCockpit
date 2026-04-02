@@ -14,3 +14,7 @@ export const SUMMARY_REQUEST_TIMEOUT_MS = 60_000;
 export const SESSION_PAGE_SIZE = 50;
 /** Number of older messages to load when paginating backward */
 export const SESSION_OLDER_PAGE_SIZE = 30;
+/** Max chars for Write tool content preview in tool approval */
+export const WRITE_PREVIEW_MAX_CHARS = 500;
+/** Max chars for agent prompt preview during streaming */
+export const AGENT_PROMPT_INLINE_PREVIEW = 200;

@@ -16,6 +16,8 @@ import {
   TOOL_RESULT_TRUNCATE_CHARS,
   TRANSCRIPT_MAX_CHARS,
   AGENT_PROMPT_PREVIEW_CHARS,
+  USER_TRANSCRIPT_MAX_CHARS,
+  ASSISTANT_TRANSCRIPT_MAX_CHARS,
 } from "../constants.ts";
 import { estimateSessionCost } from "./pricing.ts";
 
@@ -199,7 +201,8 @@ export async function listProjects(): Promise<ProjectInfo[]> {
   let dirs: string[];
   try {
     dirs = await readdir(PROJECTS_DIR);
-  } catch {
+  } catch (err) {
+    console.warn("Cannot read projects dir:", err);
     return [];
   }
 
@@ -268,7 +271,8 @@ export async function listSessions(
     let files: string[];
     try {
       files = await readdir(dirPath);
-    } catch {
+    } catch (err) {
+      console.warn(`Cannot read project dir ${dirPath}:`, err);
       continue;
     }
 
@@ -281,8 +285,8 @@ export async function listSessions(
         if (summary) {
           sessions.push(summary);
         }
-      } catch {
-        // Skip files that can't be parsed
+      } catch (err) {
+        console.warn(`Cannot parse session file ${file}:`, err);
       }
     }
   }
@@ -413,6 +417,112 @@ function extractBlocks(content: RawContentBlock[]): ExtractedBlocks {
   return { text, thinking, agents, tools };
 }
 
+/** Attach a tool_result block to its parent assistant message's agent or tool block. Returns true if attached. */
+function attachToolResult(
+  block: RawContentBlock,
+  messages: ChatMessage[],
+  pendingAgents: Map<string, { msgIdx: number; agentIdx: number }>,
+  pendingTools: Map<string, { msgIdx: number; toolIdx: number }>
+): boolean {
+  if (block.type !== "tool_result" || !block.tool_use_id) return false;
+
+  const agentRef = pendingAgents.get(block.tool_use_id);
+  if (agentRef) {
+    const msg = messages[agentRef.msgIdx];
+    if (msg?.agents?.[agentRef.agentIdx]) {
+      const resultText =
+        typeof block.content === "string"
+          ? block.content
+          : JSON.stringify(block.content);
+      msg.agents[agentRef.agentIdx].result =
+        resultText.slice(0, TOOL_RESULT_TRUNCATE_CHARS);
+    }
+    pendingAgents.delete(block.tool_use_id);
+    return true;
+  }
+
+  const toolRef = pendingTools.get(block.tool_use_id);
+  if (toolRef) {
+    const msg = messages[toolRef.msgIdx];
+    if (msg?.tools?.[toolRef.toolIdx]) {
+      const resultText =
+        typeof block.content === "string"
+          ? block.content
+          : JSON.stringify(block.content);
+      msg.tools[toolRef.toolIdx].result = resultText.slice(0, TOOL_RESULT_TRUNCATE_CHARS);
+    }
+    pendingTools.delete(block.tool_use_id);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Merge a streaming chunk's content blocks into an existing assistant message.
+ * This is the incremental (append) counterpart to extractBlocks() which is batch.
+ * See extractBlocks() for the batch equivalent.
+ */
+function mergeStreamingChunk(
+  existing: ChatMessage,
+  content: RawContentBlock[],
+  pendingAgents: Map<string, { msgIdx: number; agentIdx: number }>,
+  pendingTools: Map<string, { msgIdx: number; toolIdx: number }>,
+  existingIdx: number
+): void {
+  for (const block of content) {
+    if (block.type === "text" && block.text) {
+      // Only append if this text isn't already in the message
+      // (streaming chunks sometimes repeat content)
+      if (!existing.content.endsWith(block.text)) {
+        existing.content += block.text;
+      }
+    }
+    if (block.type === "thinking" && block.thinking) {
+      existing.thinking = (existing.thinking ?? "") + block.thinking;
+    }
+    if (block.type === "tool_use" && block.name && block.id) {
+      if (block.name === "Agent") {
+        const input = block.input as Record<string, string> | undefined;
+        if (!existing.agents) existing.agents = [];
+        const agentIdx = existing.agents.length;
+        existing.agents.push({
+          toolUseId: block.id,
+          description: input?.description ?? "",
+          subagentType: input?.subagent_type ?? "",
+          prompt: (input?.prompt ?? "").slice(0, AGENT_PROMPT_PREVIEW_CHARS),
+        });
+        pendingAgents.set(block.id, { msgIdx: existingIdx, agentIdx });
+      } else {
+        if (!existing.tools) existing.tools = [];
+        const toolIdx = existing.tools.length;
+        existing.tools.push({
+          toolUseId: block.id,
+          name: block.name,
+          input: block.input,
+        });
+        pendingTools.set(block.id, { msgIdx: existingIdx, toolIdx });
+      }
+    }
+  }
+}
+
+/** Register tool_use blocks as pending so their results can be attached later. */
+function registerPendingBlocks(
+  agents: AgentBlock[],
+  tools: ToolBlock[],
+  msgIdx: number,
+  pendingAgents: Map<string, { msgIdx: number; agentIdx: number }>,
+  pendingTools: Map<string, { msgIdx: number; toolIdx: number }>
+): void {
+  for (let i = 0; i < agents.length; i++) {
+    pendingAgents.set(agents[i].toolUseId, { msgIdx, agentIdx: i });
+  }
+  for (let i = 0; i < tools.length; i++) {
+    pendingTools.set(tools[i].toolUseId, { msgIdx, toolIdx: i });
+  }
+}
+
 /**
  * Convert raw JSONL lines into ChatMessage objects for the UI.
  *
@@ -449,35 +559,8 @@ export function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
         // User messages with only tool_result blocks are tool feedback —
         // attach results to the parent assistant message's tool/agent blocks
         for (const block of content as RawContentBlock[]) {
-          if (block.type === "tool_result" && block.tool_use_id) {
-            const agentRef = pendingAgents.get(block.tool_use_id);
-            if (agentRef) {
-              const msg = messages[agentRef.msgIdx];
-              if (msg?.agents?.[agentRef.agentIdx]) {
-                const resultText =
-                  typeof block.content === "string"
-                    ? block.content
-                    : JSON.stringify(block.content);
-                msg.agents[agentRef.agentIdx].result =
-                  resultText.slice(0, TOOL_RESULT_TRUNCATE_CHARS);
-              }
-              pendingAgents.delete(block.tool_use_id);
-              continue;
-            }
-
-            const toolRef = pendingTools.get(block.tool_use_id);
-            if (toolRef) {
-              const msg = messages[toolRef.msgIdx];
-              if (msg?.tools?.[toolRef.toolIdx]) {
-                const resultText =
-                  typeof block.content === "string"
-                    ? block.content
-                    : JSON.stringify(block.content);
-                msg.tools[toolRef.toolIdx].result = resultText.slice(0, TOOL_RESULT_TRUNCATE_CHARS);
-              }
-              pendingTools.delete(block.tool_use_id);
-              continue;
-            }
+          if (attachToolResult(block, messages, pendingAgents, pendingTools)) {
+            continue;
           }
 
           // If it has a real text block, treat as a user message
@@ -522,50 +605,15 @@ export function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
         const existing = messages[existingIdx];
         if (!existing) continue;
 
-        // Extract new content from this chunk
         const content = msg.content;
         if (Array.isArray(content)) {
-          for (const block of content as RawContentBlock[]) {
-            if (block.type === "text" && block.text) {
-              // Only append if this text isn't already in the message
-              // (streaming chunks sometimes repeat content)
-              if (!existing.content.endsWith(block.text)) {
-                existing.content += block.text;
-              }
-            }
-            if (block.type === "thinking" && block.thinking) {
-              existing.thinking = (existing.thinking ?? "") + block.thinking;
-            }
-            if (block.type === "tool_use" && block.name && block.id) {
-              if (block.name === "Agent") {
-                const input = block.input as Record<string, string> | undefined;
-                if (!existing.agents) existing.agents = [];
-                const agentIdx = existing.agents.length;
-                existing.agents.push({
-                  toolUseId: block.id,
-                  description: input?.description ?? "",
-                  subagentType: input?.subagent_type ?? "",
-                  prompt: (input?.prompt ?? "").slice(0, AGENT_PROMPT_PREVIEW_CHARS),
-                });
-                pendingAgents.set(block.id, {
-                  msgIdx: existingIdx,
-                  agentIdx,
-                });
-              } else {
-                if (!existing.tools) existing.tools = [];
-                const toolIdx = existing.tools.length;
-                existing.tools.push({
-                  toolUseId: block.id,
-                  name: block.name,
-                  input: block.input,
-                });
-                pendingTools.set(block.id, {
-                  msgIdx: existingIdx,
-                  toolIdx,
-                });
-              }
-            }
-          }
+          mergeStreamingChunk(
+            existing,
+            content as RawContentBlock[],
+            pendingAgents,
+            pendingTools,
+            existingIdx
+          );
         }
         // Update timestamp to the latest chunk
         existing.timestamp = line.timestamp;
@@ -596,14 +644,7 @@ export function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
       messages.push(newMsg);
 
       if (msgId) seenMsgIds.set(msgId, idx);
-
-      // Register pending agent/tool blocks for result attachment
-      for (let i = 0; i < agents.length; i++) {
-        pendingAgents.set(agents[i].toolUseId, { msgIdx: idx, agentIdx: i });
-      }
-      for (let i = 0; i < tools.length; i++) {
-        pendingTools.set(tools[i].toolUseId, { msgIdx: idx, toolIdx: i });
-      }
+      registerPendingBlocks(agents, tools, idx, pendingAgents, pendingTools);
       continue;
     }
   }
@@ -695,9 +736,9 @@ export function buildTranscript(
     let line: string;
 
     if (msg.role === "user") {
-      line = msg.content.trim().slice(0, 500);
+      line = msg.content.trim().slice(0, USER_TRANSCRIPT_MAX_CHARS);
     } else {
-      line = msg.content.trim().slice(0, 300);
+      line = msg.content.trim().slice(0, ASSISTANT_TRANSCRIPT_MAX_CHARS);
       const toolNames = [
         ...(msg.agents?.map(
           (a) => `Agent(${a.subagentType || a.description.slice(0, 20)})`

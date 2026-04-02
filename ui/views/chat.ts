@@ -20,6 +20,8 @@ import {
   SUMMARY_REQUEST_TIMEOUT_MS,
   SESSION_PAGE_SIZE,
   SESSION_OLDER_PAGE_SIZE,
+  WRITE_PREVIEW_MAX_CHARS,
+  AGENT_PROMPT_INLINE_PREVIEW,
 } from "../constants.ts";
 
 const PINNED_SESSIONS_KEY = "pinned-sessions";
@@ -514,7 +516,7 @@ export class CockpitChat extends LitElement {
         CHAT_REQUEST_TIMEOUT_MS
       );
     } catch {
-      // Handled via events
+      /* Request lifecycle handled by chat.close/chat.error events */
     }
     this._scrollToBottom();
   }
@@ -534,7 +536,7 @@ export class CockpitChat extends LitElement {
         const settings = JSON.parse(raw);
         return settings.defaultModel || null;
       }
-    } catch { /* ignore */ }
+    } catch { /* localStorage may be unavailable in tests */ }
     return null;
   }
 
@@ -557,7 +559,7 @@ export class CockpitChat extends LitElement {
         SUMMARY_REQUEST_TIMEOUT_MS
       );
     } catch {
-      // Error handled via summary.error event
+      /* Request lifecycle handled by summary.error/summary.done events */
     }
   }
 
@@ -569,53 +571,51 @@ export class CockpitChat extends LitElement {
 
   // ── Stream event handlers ─────────────────────────────────────────────
 
+  private _updateLastStreamingMessage(patch: Partial<ChatMessage>) {
+    const msgs = [...this.messages];
+    const last = msgs[msgs.length - 1];
+    if (last?.role === "assistant" && last.streaming) {
+      msgs[msgs.length - 1] = { ...last, ...patch };
+      this.messages = msgs;
+    }
+  }
+
   private _onChunk(data: ChunkEvent) {
     if (data.chatId !== this.currentChatId) return;
 
+    const last = this.messages[this.messages.length - 1];
+    if (!last?.streaming || last.role !== "assistant") return;
+
     if (data.type === "text" && data.content) {
-      const msgs = [...this.messages];
-      const last = msgs[msgs.length - 1];
-      if (last?.role === "assistant" && last.streaming) {
-        msgs[msgs.length - 1] = {
-          ...last,
-          content: last.content + data.content,
-        };
-        this.messages = msgs;
-      }
+      this._updateLastStreamingMessage({ content: last.content + data.content });
     } else if (data.type === "tool_use" && data.content) {
-      const msgs = [...this.messages];
-      const last = msgs[msgs.length - 1];
-      if (last?.role === "assistant" && last.streaming) {
-        const raw = data.raw as Record<string, unknown> | undefined;
-        const input = raw?.input as Record<string, string> | undefined;
-        if (data.content === "Agent" || raw?.name === "Agent") {
-          if (!last.agents) last.agents = [];
-          last.agents.push({
-            toolUseId: (raw?.id as string) ?? "",
-            description: input?.description ?? "",
-            subagentType: input?.subagent_type ?? "",
-            prompt: (input?.prompt ?? "").slice(0, 200),
-          });
-        } else {
-          if (!last.tools) last.tools = [];
-          last.tools.push({
-            toolUseId: (raw?.id as string) ?? "",
-            name: data.content,
-          });
-        }
-        msgs[msgs.length - 1] = { ...last };
-        this.messages = msgs;
+      const raw = data.raw as Record<string, unknown> | undefined;
+      const input = raw?.input as Record<string, string> | undefined;
+      if (data.content === "Agent" || raw?.name === "Agent") {
+        this._updateLastStreamingMessage({
+          agents: [
+            ...(last.agents ?? []),
+            {
+              toolUseId: (raw?.id as string) ?? "",
+              description: input?.description ?? "",
+              subagentType: input?.subagent_type ?? "",
+              prompt: (input?.prompt ?? "").slice(0, AGENT_PROMPT_INLINE_PREVIEW),
+            },
+          ],
+        });
+      } else {
+        this._updateLastStreamingMessage({
+          tools: [
+            ...(last.tools ?? []),
+            {
+              toolUseId: (raw?.id as string) ?? "",
+              name: data.content,
+            },
+          ],
+        });
       }
     } else if (data.type === "thinking" && data.content) {
-      const msgs = [...this.messages];
-      const last = msgs[msgs.length - 1];
-      if (last?.role === "assistant" && last.streaming) {
-        msgs[msgs.length - 1] = {
-          ...last,
-          thinking: (last.thinking ?? "") + data.content,
-        };
-        this.messages = msgs;
-      }
+      this._updateLastStreamingMessage({ thinking: (last.thinking ?? "") + data.content });
     }
     this._scrollToBottom();
   }
@@ -1043,7 +1043,7 @@ export class CockpitChat extends LitElement {
       case "Write":
         return html`
           <div class="tool-approval__file">${input.file_path as string}</div>
-          <pre class="tool-approval__code">${(input.content as string)?.slice(0, 500)}</pre>
+          <pre class="tool-approval__code">${(input.content as string)?.slice(0, WRITE_PREVIEW_MAX_CHARS)}</pre>
         `;
       case "Read":
       case "Glob":

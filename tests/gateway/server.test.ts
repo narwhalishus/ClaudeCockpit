@@ -7,17 +7,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.hoisted runs before vi.mock hoisting, so the mock fn is available in factories
-const { mockWriteControlResponse } = vi.hoisted(() => ({
+const { mockWriteControlResponse, capturedHttpHandler } = vi.hoisted(() => ({
   mockWriteControlResponse: vi.fn().mockReturnValue(true),
+  capturedHttpHandler: { fn: null as ((req: unknown, res: unknown) => Promise<void>) | null },
 }));
 
 // ── Mock node:http and ws to prevent server.ts from actually listening ────
 // Use synchronous factories to ensure mocks are in place before module evaluation.
 vi.mock("node:http", () => {
   const m = {
-    createServer: vi.fn(() => ({
-      listen: vi.fn((_port: number, cb?: () => void) => cb?.()),
-    })),
+    createServer: vi.fn((handler: unknown) => {
+      capturedHttpHandler.fn = handler as typeof capturedHttpHandler.fn;
+      return {
+        listen: vi.fn((_port: number, cb?: () => void) => cb?.()),
+      };
+    }),
   };
   return { ...m, default: m };
 });
@@ -266,5 +270,206 @@ describe("handleWsRequest", () => {
 
     const frame = ws.lastFrame();
     expect(frame.error.code).toBe("INVALID_PARAMS");
+  });
+
+  // ── tool.respond behavior validation ──────────────────────────────────
+
+  it("tool.respond with invalid behavior → errResponse INVALID_PARAMS", async () => {
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("tool.respond", {
+      chatId: "c1",
+      requestId: "req-1",
+      behavior: "maybe",
+    }));
+
+    const frame = ws.lastFrame();
+    expect(frame.error.code).toBe("INVALID_PARAMS");
+    expect(frame.error.message).toContain("behavior must be");
+  });
+
+  // ── chat lifecycle events ─────────────────────────────────────────────
+
+  it("chat.send close event → sends chat.close and okResponse", async () => {
+    const mockProc = new EventEmitter();
+    vi.mocked(startChat).mockReturnValueOnce(mockProc as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("chat.send", {
+      prompt: "hello",
+      chatId: "c1",
+    }));
+
+    // Simulate process close
+    mockProc.emit("close", 0);
+
+    const frames = ws._sent.map((s: string) => JSON.parse(s));
+    const closeEvent = frames.find((f: Record<string, unknown>) => f.event === "chat.close");
+    expect(closeEvent).toBeDefined();
+    expect(closeEvent.data).toMatchObject({ chatId: "c1", exitCode: 0 });
+
+    const response = frames.find((f: Record<string, unknown>) => f.type === "res");
+    expect(response).toBeDefined();
+    expect(response.result).toMatchObject({ chatId: "c1", status: "completed" });
+  });
+
+  it("chat.send chunk event → forwards as chat.chunk", async () => {
+    const mockProc = new EventEmitter();
+    vi.mocked(startChat).mockReturnValueOnce(mockProc as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("chat.send", {
+      prompt: "hello",
+      chatId: "c1",
+    }));
+
+    mockProc.emit("chunk", { type: "text", content: "world" });
+
+    const frames = ws._sent.map((s: string) => JSON.parse(s));
+    const chunk = frames.find((f: Record<string, unknown>) => f.event === "chat.chunk");
+    expect(chunk).toBeDefined();
+    expect(chunk.data).toMatchObject({ chatId: "c1", type: "text", content: "world" });
+  });
+
+  it("chat.send error event → forwards as chat.error", async () => {
+    const mockProc = new EventEmitter();
+    vi.mocked(startChat).mockReturnValueOnce(mockProc as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("chat.send", {
+      prompt: "hello",
+      chatId: "c1",
+    }));
+
+    mockProc.emit("error", new Error("something broke"));
+
+    const frames = ws._sent.map((s: string) => JSON.parse(s));
+    const errorEvent = frames.find((f: Record<string, unknown>) => f.event === "chat.error");
+    expect(errorEvent).toBeDefined();
+    expect(errorEvent.data).toMatchObject({ chatId: "c1", message: "something broke" });
+  });
+
+  it("chat.send tool.approval event → forwards as tool.approval", async () => {
+    const mockProc = new EventEmitter();
+    vi.mocked(startChat).mockReturnValueOnce(mockProc as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("chat.send", {
+      prompt: "hello",
+      chatId: "c1",
+    }));
+
+    mockProc.emit("tool.approval", { request_id: "r1", request: { tool_name: "Bash" } });
+
+    const frames = ws._sent.map((s: string) => JSON.parse(s));
+    const approval = frames.find((f: Record<string, unknown>) => f.event === "tool.approval");
+    expect(approval).toBeDefined();
+    expect(approval.data).toMatchObject({ chatId: "c1", request_id: "r1" });
+  });
+});
+
+// ── HTTP handler tests ───────────────────────────────────────────────────
+
+function mockHttpReq(method: string, url: string) {
+  return { method, url };
+}
+
+function mockHttpRes() {
+  const data = { status: 200, headers: {} as Record<string, string>, body: "" };
+  const res = {
+    writeHead: vi.fn((status: number, headers?: Record<string, string>) => {
+      data.status = status;
+      if (headers) Object.assign(data.headers, headers);
+    }),
+    end: vi.fn((body?: string) => {
+      if (body) data.body = body;
+    }),
+  };
+  return { res, data };
+}
+
+describe("HTTP handler", () => {
+  const httpHandler = () => capturedHttpHandler.fn!;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("GET /api/overview → returns overview stats with gateway timestamp", async () => {
+    const { res, data } = mockHttpRes();
+    await httpHandler()(mockHttpReq("GET", "/api/overview"), res);
+
+    expect(getOverviewStats).toHaveBeenCalled();
+    expect(data.status).toBe(200);
+    const body = JSON.parse(data.body);
+    expect(body.totalSessions).toBe(5);
+    expect(body.gatewayStartedAt).toBeDefined();
+  });
+
+  it("GET /api/overview?project=p1 → passes project filter", async () => {
+    const { res } = mockHttpRes();
+    await httpHandler()(mockHttpReq("GET", "/api/overview?project=p1"), res);
+
+    expect(getOverviewStats).toHaveBeenCalledWith("p1");
+  });
+
+  it("GET /api/sessions → returns sessions list", async () => {
+    const { res, data } = mockHttpRes();
+    await httpHandler()(mockHttpReq("GET", "/api/sessions"), res);
+
+    expect(listSessions).toHaveBeenCalled();
+    expect(data.status).toBe(200);
+    const body = JSON.parse(data.body);
+    expect(body.sessions).toBeDefined();
+    expect(body.count).toBe(1);
+  });
+
+  it("GET /api/projects → returns projects list", async () => {
+    const { res, data } = mockHttpRes();
+    await httpHandler()(mockHttpReq("GET", "/api/projects"), res);
+
+    expect(listProjects).toHaveBeenCalled();
+    expect(data.status).toBe(200);
+    const body = JSON.parse(data.body);
+    expect(body.projects).toBeDefined();
+    expect(body.count).toBe(1);
+  });
+
+  it("GET /api/health → returns health info", async () => {
+    const { res, data } = mockHttpRes();
+    await httpHandler()(mockHttpReq("GET", "/api/health"), res);
+
+    expect(data.status).toBe(200);
+    const body = JSON.parse(data.body);
+    expect(body.status).toBe("ok");
+    expect(body.timestamp).toBeDefined();
+    expect(body.startedAt).toBeDefined();
+  });
+
+  it("OPTIONS → 204 with CORS headers", async () => {
+    const { res, data } = mockHttpRes();
+    await httpHandler()(mockHttpReq("OPTIONS", "/api/overview"), res);
+
+    expect(data.status).toBe(204);
+    expect(data.headers["Access-Control-Allow-Origin"]).toBe("*");
+    expect(data.headers["Access-Control-Allow-Methods"]).toContain("GET");
+  });
+
+  it("unknown path → 404", async () => {
+    const { res, data } = mockHttpRes();
+    await httpHandler()(mockHttpReq("GET", "/api/nonexistent"), res);
+
+    expect(data.status).toBe(404);
+    const body = JSON.parse(data.body);
+    expect(body.error).toBe("Not found");
+  });
+
+  it("service error → 500", async () => {
+    vi.mocked(getOverviewStats).mockRejectedValueOnce(new Error("db down"));
+    const { res, data } = mockHttpRes();
+    await httpHandler()(mockHttpReq("GET", "/api/overview"), res);
+
+    expect(data.status).toBe(500);
+    const body = JSON.parse(data.body);
+    expect(body.error).toBe("Internal server error");
   });
 });

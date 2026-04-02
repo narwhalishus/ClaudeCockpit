@@ -12,7 +12,7 @@ import {
   getSessionTranscript,
   renameSession,
 } from "./services/session-store.ts";
-import { startChat, abortChat, getProcess, generateTitle } from "./services/claude-cli.ts";
+import { startChat, abortChat, getProcess, generateTitle, type ClaudeProcess } from "./services/claude-cli.ts";
 import { SUMMARY_MAX_BUDGET, TITLE_MAX_LENGTH } from "./constants.ts";
 import {
   parseFrame,
@@ -160,29 +160,23 @@ async function handleSessionsMessages({ ws, id, p }: WsContext) {
   send(ws, okResponse(id, result));
 }
 
-async function handleChatSend({ ws, id, p }: WsContext) {
-  const prompt = requireString(p, "prompt");
-  if (!prompt) {
-    send(ws, errResponse(id, "INVALID_PARAMS", "prompt is required"));
-    return;
-  }
+function maybeGenerateTitle(ws: WebSocket, sessionId: string, prompt: string) {
+  generateTitle(prompt).then(async (title) => {
+    if (title) {
+      await renameSession(sessionId, title);
+      send(ws, event("session.titled", { sessionId, title }));
+    }
+  }).catch((err) => console.error("Title generation failed:", err));
+}
 
-  const chatId = getString(p, "chatId") ?? id;
-  const model = getString(p, "model");
-  const sessionId = getString(p, "sessionId");
-  const cwd = getString(p, "cwd");
-  const isNewSession = !sessionId;
-
-  const proc = startChat(chatId, {
-    prompt,
-    model,
-    sessionId,
-    cwd,
-    interactive: true,
-  });
-
-  trackChat(ws, chatId);
-
+function wireChatEvents(
+  proc: ClaudeProcess,
+  ws: WebSocket,
+  chatId: string,
+  id: string,
+  isNewSession: boolean,
+  prompt: string
+) {
   let newSessionId: string | null = null;
 
   proc.on("chunk", (chunk) => {
@@ -202,24 +196,39 @@ async function handleChatSend({ ws, id, p }: WsContext) {
   });
 
   proc.on("close", (code) => {
+    wsChats.get(ws)?.delete(chatId);
     send(ws, event("chat.close", { chatId, exitCode: code }));
     send(ws, okResponse(id, { chatId, status: "completed" }));
 
     if (isNewSession && newSessionId) {
-      const sid = newSessionId;
-      generateTitle(prompt).then(async (title) => {
-        if (title) {
-          await renameSession(sid, title);
-          send(ws, event("session.titled", { sessionId: sid, title }));
-        }
-      }).catch((err) => console.error("Title generation failed:", err));
+      maybeGenerateTitle(ws, newSessionId, prompt);
     }
   });
 
   proc.on("tool.approval", (data) => {
     send(ws, event("tool.approval", { chatId, ...(data as Record<string, unknown>) }));
   });
+}
 
+async function handleChatSend({ ws, id, p }: WsContext) {
+  const prompt = requireString(p, "prompt");
+  if (!prompt) {
+    send(ws, errResponse(id, "INVALID_PARAMS", "prompt is required"));
+    return;
+  }
+
+  const chatId = getString(p, "chatId") ?? id;
+  const sessionId = getString(p, "sessionId");
+  const proc = startChat(chatId, {
+    prompt,
+    model: getString(p, "model"),
+    sessionId,
+    cwd: getString(p, "cwd"),
+    interactive: true,
+  });
+
+  trackChat(ws, chatId);
+  wireChatEvents(proc, ws, chatId, id, !sessionId, prompt);
   send(ws, event("chat.started", { chatId }));
 }
 
@@ -236,10 +245,15 @@ async function handleChatAbort({ ws, id, p }: WsContext) {
 async function handleToolRespond({ ws, id, p }: WsContext) {
   const chatId = requireString(p, "chatId");
   const requestId = requireString(p, "requestId");
-  const behavior = getString(p, "behavior") as "allow" | "deny" | undefined;
+  const behavior = getString(p, "behavior");
 
   if (!chatId || !requestId || !behavior) {
     send(ws, errResponse(id, "INVALID_PARAMS", "chatId, requestId, and behavior are required"));
+    return;
+  }
+
+  if (behavior !== "allow" && behavior !== "deny") {
+    send(ws, errResponse(id, "INVALID_PARAMS", "behavior must be 'allow' or 'deny'"));
     return;
   }
 
@@ -333,6 +347,7 @@ export async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
       send(ws, errResponse(id, "UNKNOWN_METHOD", `Unknown method: ${method}`));
     }
   } catch (err) {
+    console.error("WS handler error:", method, err);
     const msg = err instanceof Error ? err.message : "Internal error";
     send(ws, errResponse(id, "INTERNAL_ERROR", msg));
   }
@@ -355,17 +370,21 @@ function handleWsConnection(ws: WebSocket) {
     const chatIds = wsChats.get(ws);
     if (chatIds) {
       for (const chatId of chatIds) {
-        // Auto-deny pending tool approvals so claude -p doesn't hang indefinitely
-        const proc = getProcess(chatId);
-        if (proc?.pendingApproval) {
-          proc.writeControlResponse(
-            proc.pendingApproval.requestId,
-            "deny",
-            "WebSocket client disconnected"
-          );
+        try {
+          // Auto-deny pending tool approvals so claude -p doesn't hang indefinitely
+          const proc = getProcess(chatId);
+          if (proc?.pendingApproval) {
+            proc.writeControlResponse(
+              proc.pendingApproval.requestId,
+              "deny",
+              "WebSocket client disconnected"
+            );
+          }
+          // Abort running processes — no UI to control them anymore
+          abortChat(chatId);
+        } catch (err) {
+          console.error(`Disconnect cleanup failed for chat ${chatId}:`, err);
         }
-        // Abort running processes — no UI to control them anymore
-        abortChat(chatId);
       }
       wsChats.delete(ws);
     }

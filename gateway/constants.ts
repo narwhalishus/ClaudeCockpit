@@ -14,3 +14,9 @@ export const TOOL_RESULT_TRUNCATE_CHARS = 500;
 export const TRANSCRIPT_MAX_CHARS = 12_000;
 /** Truncate agent prompt preview in UI beyond this length */
 export const AGENT_PROMPT_PREVIEW_CHARS = 200;
+/** Timeout (ms) before SIGKILL after SIGTERM when aborting a process */
+export const PROCESS_KILL_TIMEOUT_MS = 5_000;
+/** Max chars for user messages in the compact transcript */
+export const USER_TRANSCRIPT_MAX_CHARS = 500;
+/** Max chars for assistant messages in the compact transcript */
+export const ASSISTANT_TRANSCRIPT_MAX_CHARS = 300;

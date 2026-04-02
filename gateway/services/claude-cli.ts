@@ -15,6 +15,7 @@ import {
   TITLE_GENERATION_TIMEOUT_MS,
   TITLE_MAX_LENGTH,
   TITLE_GENERATION_MAX_BUDGET,
+  PROCESS_KILL_TIMEOUT_MS,
 } from "../constants.ts";
 
 export interface ChatRequest {
@@ -135,14 +136,19 @@ export class ClaudeProcess extends EventEmitter {
 
   abort(): void {
     if (this.proc && !this.proc.killed) {
+      // Clear any existing kill timer to prevent leaks on repeated abort()
+      if (this.killTimer) {
+        clearTimeout(this.killTimer);
+        this.killTimer = null;
+      }
       this.proc.kill("SIGTERM");
-      // Force kill after 5 seconds if still alive
+      // Force kill after timeout if still alive
       this.killTimer = setTimeout(() => {
         this.killTimer = null;
         if (this.proc && !this.proc.killed) {
           this.proc.kill("SIGKILL");
         }
-      }, 5000);
+      }, PROCESS_KILL_TIMEOUT_MS);
     }
   }
 
