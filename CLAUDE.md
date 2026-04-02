@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Phase 2.5 (Chat Refinements)**: Complete — session detail sidebar, model selector, conversation summary, overview redesign, structured user messages + per-tool colored symbols, gateway resilience fix
 - **Phase 3 (Usage Analytics)**: Planned — token breakdown by day/model/project, Bedrock cost tracking
 
-Full roadmap with checklists: `roadmap.html` | Changelog: `changelog.html` | Testing pipeline: `testing.html`
+Full roadmap with checklists: `roadmap.html` | Changelog: `changelog.html` | Testing pipeline: `testing.html` | Contributing guide: `contributing.html`
 
 ## Architecture
 
