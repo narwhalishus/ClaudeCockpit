@@ -87,7 +87,7 @@ async function handleHttp(req: IncomingMessage, res: ServerResponse) {
 
 // ─── WebSocket handler ─────────────────────────────────────────────────────
 
-let wss: WebSocketServer;
+let wss: WebSocketServer | null = null;
 
 /** Track which chatIds are associated with each WebSocket (for auto-deny on disconnect) */
 const wsChats = new Map<WebSocket, Set<string>>();
@@ -336,11 +336,10 @@ function handleWsConnection(ws: WebSocket) {
 
   ws.on("close", () => {
     console.log("WebSocket client disconnected");
-    // Auto-deny pending tool approvals so claude -p doesn't hang indefinitely
-    // waiting for approval if the UI crashes or the browser tab is closed.
     const chatIds = wsChats.get(ws);
     if (chatIds) {
       for (const chatId of chatIds) {
+        // Auto-deny pending tool approvals so claude -p doesn't hang indefinitely
         const proc = getProcess(chatId);
         if (proc?.pendingApproval) {
           proc.writeControlResponse(
@@ -349,6 +348,8 @@ function handleWsConnection(ws: WebSocket) {
             "WebSocket client disconnected"
           );
         }
+        // Abort running processes — no UI to control them anymore
+        abortChat(chatId);
       }
       wsChats.delete(ws);
     }

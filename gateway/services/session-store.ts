@@ -195,25 +195,27 @@ export async function listProjects(): Promise<ProjectInfo[]> {
   );
 }
 
+/** List project directory names, optionally filtered to a single project */
+async function getProjectDirs(projectId?: string): Promise<string[]> {
+  if (projectId) return [projectId];
+  try {
+    const dirs = await readdir(PROJECTS_DIR);
+    const result: string[] = [];
+    for (const dir of dirs) {
+      const dirStat = await stat(join(PROJECTS_DIR, dir)).catch(() => null);
+      if (dirStat?.isDirectory()) result.push(dir);
+    }
+    return result;
+  } catch {
+    return [];
+  }
+}
+
 /** List all sessions, optionally filtered by project */
 export async function listSessions(
   projectId?: string
 ): Promise<SessionSummary[]> {
-  const projectDirs = projectId ? [projectId] : [];
-
-  if (!projectId) {
-    try {
-      const dirs = await readdir(PROJECTS_DIR);
-      for (const dir of dirs) {
-        const dirStat = await stat(join(PROJECTS_DIR, dir)).catch(() => null);
-        if (dirStat?.isDirectory()) {
-          projectDirs.push(dir);
-        }
-      }
-    } catch {
-      return [];
-    }
-  }
+  const projectDirs = await getProjectDirs(projectId);
 
   const sessions: SessionSummary[] = [];
 
@@ -246,11 +248,12 @@ export async function listSessions(
   );
 }
 
-/** Pure aggregation of sessions into overview stats (no I/O) */
+/** Pure aggregation of sessions into overview stats (no I/O).
+ *  Returns everything except gatewayStartedAt — the server adds that. */
 export function computeOverviewStats(
   sessions: SessionSummary[],
   totalProjects: number
-): OverviewStats {
+): Omit<OverviewStats, "gatewayStartedAt"> {
   const now = new Date();
   const todayStart = new Date(
     now.getFullYear(),
@@ -291,7 +294,6 @@ export function computeOverviewStats(
     totalCacheCreationTokens: totalCacheCreation,
     sessionsToday,
     estimatedTotalCostUsd,
-    gatewayStartedAt: "",
     recentSessions: sessions.slice(0, 10),
   };
 }
@@ -314,19 +316,7 @@ async function findSessionFile(
   sessionId: string,
   projectId?: string
 ): Promise<{ filePath: string; projectId: string } | null> {
-  const dirsToSearch = projectId ? [projectId] : [];
-
-  if (!projectId) {
-    try {
-      const dirs = await readdir(PROJECTS_DIR);
-      for (const dir of dirs) {
-        const dirStat = await stat(join(PROJECTS_DIR, dir)).catch(() => null);
-        if (dirStat?.isDirectory()) dirsToSearch.push(dir);
-      }
-    } catch {
-      return null;
-    }
-  }
+  const dirsToSearch = await getProjectDirs(projectId);
 
   for (const dir of dirsToSearch) {
     const filePath = join(PROJECTS_DIR, dir, `${sessionId}.jsonl`);

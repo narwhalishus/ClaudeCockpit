@@ -14,12 +14,9 @@ import type {
   ToolApprovalEvent,
 } from "../types.ts";
 import { formatTokens, formatRelativeTime, formatDuration } from "../utils/format.ts";
+import { MODEL_OPTIONS } from "../constants.ts";
 
-const MODEL_OPTIONS = [
-  { value: "claude-opus-4-6", label: "Opus 4.6" },
-  { value: "claude-sonnet-4-6", label: "Sonnet 4.6" },
-  { value: "claude-haiku-4-5", label: "Haiku 4.5" },
-];
+const PINNED_SESSIONS_KEY = "pinned-sessions";
 
 /** Pre-configured Marked instance for rendering assistant messages */
 const md = new Marked({
@@ -97,7 +94,7 @@ export class CockpitChat extends LitElement {
   @state() private sidebarOpen = true;
   @state() private detailOpen = false;
   @state() private pinnedSessionIds: Set<string> = new Set(
-    JSON.parse(localStorage.getItem("pinned-sessions") ?? "[]")
+    JSON.parse(localStorage.getItem(PINNED_SESSIONS_KEY) ?? "[]")
   );
   @state() private summaryContent = "";
   @state() private summarizing = false;
@@ -271,7 +268,7 @@ export class CockpitChat extends LitElement {
       pins.add(sessionId);
     }
     this.pinnedSessionIds = pins;
-    localStorage.setItem("pinned-sessions", JSON.stringify([...pins]));
+    localStorage.setItem(PINNED_SESSIONS_KEY, JSON.stringify([...pins]));
   }
 
   private _startRename(sessionId: string) {
@@ -354,13 +351,13 @@ export class CockpitChat extends LitElement {
 
     this.messages = [
       ...this.messages,
-      { uuid: `u-${Date.now()}`, role: "user", content: prompt, timestamp: new Date().toISOString() },
-      { uuid: `a-${Date.now()}`, role: "assistant", content: "", timestamp: new Date().toISOString(), streaming: true },
+      { uuid: crypto.randomUUID(), role: "user", content: prompt, timestamp: new Date().toISOString() },
+      { uuid: crypto.randomUUID(), role: "assistant", content: "", timestamp: new Date().toISOString(), streaming: true },
     ];
 
     this.inputValue = "";
     this.streaming = true;
-    this.currentChatId = `chat-${Date.now()}`;
+    this.currentChatId = crypto.randomUUID();
 
     // Decode projectId to a real path so claude spawns in the right cwd
     const cwd = this.projectId

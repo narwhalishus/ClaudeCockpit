@@ -1,7 +1,7 @@
 import { LitElement, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { OverviewStats, CockpitTab } from "../types.ts";
-import { formatTokens, formatRelativeTimeVerbose as formatRelativeTime, formatCost, formatUptime } from "../utils/format.ts";
+import { formatTokens, formatRelativeTime, formatCost, formatUptime } from "../utils/format.ts";
 
 type StatCard = {
   kind: string;
@@ -131,7 +131,7 @@ export class CockpitOverview extends LitElement {
                         ${s.firstPrompt || s.sessionId.slice(0, 8)}
                       </span>
                       <span class="ov-recent__model">${s.model || ""}</span>
-                      <span class="ov-recent__time">${formatRelativeTime(s.lastMessageAt)}</span>
+                      <span class="ov-recent__time">${formatRelativeTime(s.lastMessageAt, true)}</span>
                     </li>
                   `
                 )}

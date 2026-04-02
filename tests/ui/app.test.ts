@@ -8,18 +8,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 
 import "../../ui/app.ts";
 import type { CockpitApp } from "../../ui/app.ts";
-
-/** Wait for Lit's async render cycle to complete */
-async function renderEl<T extends HTMLElement>(el: T): Promise<T> {
-  document.body.appendChild(el);
-  await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
-  return el;
-}
-
-async function setProps(el: HTMLElement, props: Record<string, unknown>) {
-  Object.assign(el, props);
-  await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
-}
+import { renderEl, setProps } from "../helpers.ts";
 
 describe("cockpit-app project selector", () => {
   beforeEach(() => {

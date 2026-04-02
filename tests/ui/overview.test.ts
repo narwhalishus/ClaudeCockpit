@@ -11,13 +11,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import "../../ui/views/overview.ts";
 import type { CockpitOverview } from "../../ui/views/overview.ts";
 import type { OverviewStats } from "../../ui/types.ts";
-
-/** Wait for Lit's async render cycle to complete */
-async function renderEl<T extends HTMLElement>(el: T): Promise<T> {
-  document.body.appendChild(el);
-  await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
-  return el;
-}
+import { renderEl } from "../helpers.ts";
 
 function makeStats(overrides: Partial<OverviewStats> = {}): OverviewStats {
   return {

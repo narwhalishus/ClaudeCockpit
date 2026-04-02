@@ -8,23 +8,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import "../../ui/views/chat.ts";
 import type { CockpitChat } from "../../ui/views/chat.ts";
-
-/** Wait for Lit's async render cycle to complete */
-async function renderEl<T extends HTMLElement>(el: T): Promise<T> {
-  document.body.appendChild(el);
-  await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
-  return el;
-}
-
-/**
- * Force-set reactive properties on a Lit element and wait for re-render.
- * We use Object.assign to write to @state fields directly, which is how
- * Lit handles internal state in tests (no attribute reflection needed).
- */
-async function setProps(el: HTMLElement, props: Record<string, unknown>) {
-  Object.assign(el, props);
-  await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
-}
+import { renderEl, setProps } from "../helpers.ts";
 
 describe("cockpit-chat markdown rendering", () => {
   beforeEach(() => {

@@ -7,28 +7,26 @@ export function formatTokens(n: number): string {
   return String(n);
 }
 
-/** Compact relative time for sidebar labels: "now", "5m", "3h", "2d" */
-export function formatRelativeTime(iso: string): string {
+/**
+ * Relative time from an ISO timestamp.
+ * Compact mode (default): "now", "5m", "3h", "2d" — for sidebar labels.
+ * Verbose mode: "just now", "5m ago", "3h ago", "2d ago" — for overview cards.
+ */
+export function formatRelativeTime(iso: string, verbose = false): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
+  const suffix = verbose ? " ago" : "";
+  if (mins < 1) return verbose ? "just now" : "now";
+  if (mins < 60) return `${mins}m${suffix}`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return `${hours}h${suffix}`;
   const days = Math.floor(hours / 24);
-  return `${days}d`;
+  return `${days}d${suffix}`;
 }
 
-/** Verbose relative time for overview cards: "just now", "5m ago", "3h ago" */
+/** @deprecated Use formatRelativeTime(iso, true) instead */
 export function formatRelativeTimeVerbose(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return formatRelativeTime(iso, true);
 }
 
 /** Format gateway uptime from an ISO start time (e.g. "45s", "3m 20s", "2h 15m", "1d 4h") */

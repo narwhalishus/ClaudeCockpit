@@ -136,12 +136,127 @@
 
   <!-- ============================================================ -->
 
-  <!-- v0.3.0 -->
+  <!-- v0.6.0 -->
   <div class="release release--latest">
+    <div class="release__head">
+      <span class="release__version">v0.6.0</span>
+      <span class="release__name">Codebase Refinement</span>
+      <span class="release__badge badge--latest">Latest</span>
+    </div>
+    <div class="release__date">2026-04-01</div>
+
+    <div class="release__section">
+      <div class="release__section-title">Fixed</div>
+      <ul class="release__list">
+        <li>Added <code>.on("error")</code> handlers for stdout, stderr, and stdin streams in <code>ClaudeProcess</code> — prevents uncaught exceptions from crashing the gateway</li>
+        <li>Fixed temporal dead zone in <code>generateTitle</code> — <code>proc</code> was referenced in timeout callback before its declaration</li>
+        <li>Gateway now aborts running <code>claude -p</code> processes when WebSocket client disconnects (previously only auto-denied pending approvals)</li>
+        <li>Abort kill timer (SIGKILL fallback) now cleaned up when process exits naturally, preventing leaked timers</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Added</div>
+      <ul class="release__list">
+        <li>Frame protocol tests (<code>tests/gateway/frames.test.ts</code>) — parseFrame, serializeFrame round-trips, helper constructors</li>
+        <li>Server tests for <code>sessions.summarize</code> and <code>chat.send</code> WS methods</li>
+        <li>Settings component tests (<code>tests/ui/settings.test.ts</code>) — dropdown rendering, localStorage persistence</li>
+        <li>Shared test helper (<code>tests/helpers.ts</code>) — extracted <code>renderEl</code> and <code>setProps</code> from 4 duplicate locations</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Changed</div>
+      <ul class="release__list">
+        <li>Message and chat IDs use <code>crypto.randomUUID()</code> instead of <code>Date.now()</code> — collision-free</li>
+        <li><code>MODEL_OPTIONS</code> extracted to shared <code>ui/constants.ts</code> (was duplicated in chat.ts and settings.ts)</li>
+        <li><code>formatRelativeTime</code> consolidated — single function with <code>verbose</code> param replaces two near-identical functions</li>
+        <li>Extracted <code>getProjectDirs()</code> helper in session-store (was duplicated in <code>listSessions</code> and <code>findSessionFile</code>)</li>
+        <li>Removed <code>gatewayStartedAt: ""</code> placeholder from <code>computeOverviewStats</code> — server already adds it</li>
+        <li><code>wss</code> initialized as <code>WebSocketServer | null</code> for type safety</li>
+        <li>Pinned sessions localStorage key extracted to <code>PINNED_SESSIONS_KEY</code> constant</li>
+        <li>Test count: 189 &rarr; 213 across 13 files</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- v0.5.0 -->
+  <div class="release release--stable">
+    <div class="release__head">
+      <span class="release__version">v0.5.0</span>
+      <span class="release__name">Overview Redesign</span>
+      <span class="release__badge badge--stable">Phase 2.5</span>
+    </div>
+    <div class="release__date">2026-04-01</div>
+
+    <div class="release__section">
+      <div class="release__section-title">Added</div>
+      <ul class="release__list">
+        <li>Redesigned overview with 6 stat cards: total sessions, projects, tokens used, est. cost, gateway uptime, avg tokens/session <span class="hash">2940781</span></li>
+        <li>Bedrock pricing module (<code>gateway/services/pricing.ts</code>) — per-model cost estimation from token counts</li>
+        <li>Live-ticking uptime counter (updates every second via <code>setInterval</code>)</li>
+        <li>Pricing tests (<code>tests/gateway/pricing.test.ts</code>)</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Removed</div>
+      <ul class="release__list">
+        <li>Usage tab — overview now covers cost estimation; separate analytics deferred to Phase 3 <span class="hash">2940781</span></li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Changed</div>
+      <ul class="release__list">
+        <li>Overview stat cards use <code>&lt;button&gt;</code> elements with click navigation</li>
+        <li>Test count: 166 &rarr; 189</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- v0.4.0 -->
+  <div class="release release--stable">
+    <div class="release__head">
+      <span class="release__version">v0.4.0</span>
+      <span class="release__name">Chat Polish</span>
+      <span class="release__badge badge--stable">Phase 2.5</span>
+    </div>
+    <div class="release__date">2026-04-01</div>
+
+    <div class="release__section">
+      <div class="release__section-title">Added</div>
+      <ul class="release__list">
+        <li>Model selector — Settings tab with default model dropdown, per-session override in detail sidebar <span class="hash">a586343</span></li>
+        <li>On-demand session summary — sparkle button triggers "catch me up" via one-shot Claude call, streamed into dismissible card <span class="hash">fbff8c1</span></li>
+        <li><code>buildTranscript()</code> — formats conversation history for summarization (backwards from latest, 12K char budget)</li>
+        <li>Gateway constants module (<code>gateway/constants.ts</code>) — extracted magic numbers</li>
+        <li><code>sessions.summarize</code> and <code>sessions.rename</code> WebSocket methods</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Removed</div>
+      <ul class="release__list">
+        <li>Projects tab — redundant with project selector in app shell sidebar <span class="hash">e5ece15</span></li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Changed</div>
+      <ul class="release__list">
+        <li>Gateway internals refactored — <code>consolidateMessages()</code> extracted from <code>convertToMessages()</code> <span class="hash">fbff8c1</span></li>
+        <li>Test count: 85 &rarr; 166</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- v0.3.0 -->
+  <div class="release release--stable">
     <div class="release__head">
       <span class="release__version">v0.3.0</span>
       <span class="release__name">Session Detail Sidebar</span>
-      <span class="release__badge badge--latest">Latest</span>
+      <span class="release__badge badge--stable">Phase 2.5</span>
     </div>
     <div class="release__date">2026-03-31</div>
 
@@ -250,7 +365,7 @@
     </div>
   </div>
 
-  <p class="updated">Last updated: 2026-03-31</p>
+  <p class="updated">Last updated: 2026-04-01</p>
 
 </div>
 </body>

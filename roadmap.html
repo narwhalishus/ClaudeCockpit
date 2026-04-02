@@ -266,7 +266,10 @@
     <p class="phase__desc">Polish the session cockpit experience.</p>
     <ul class="checklist">
       <li><span class="check check--done">&#10003;</span> Model selector — settings tab for default + per-session override in detail sidebar</li>
-      <li><span class="check check--done">&#10003;</span> Conversation summary — on-demand "catch me up" for a session</li>
+      <li><span class="check check--done">&#10003;</span> Conversation summary — on-demand "catch me up" via sparkle button</li>
+      <li><span class="check check--done">&#10003;</span> Overview redesign — 6 stat cards (sessions, projects, tokens, est. cost, uptime, avg tokens/session), Usage tab removed</li>
+      <li><span class="check check--done">&#10003;</span> Pricing module — Bedrock cost estimation per model (<code>gateway/services/pricing.ts</code>)</li>
+      <li><span class="check check--done">&#10003;</span> Codebase refinement — stream error handlers, TDZ fix, abort on disconnect, kill timer cleanup, 213 tests, shared helpers, code deduplication</li>
       <li><span class="check check--todo"></span> Structured user message rendering — parse CC XML tags into styled blocks</li>
       <li><span class="check check--done">&#10003;</span> Session detail sidebar — toggleable right panel with metadata (model, tokens, duration, cache, cwd). Sessions tab removed, both sidebars collapsible.</li>
       <li><span class="check check--done">&#10003;</span> Tool approval banner — bidirectional control protocol via <code>--input-format stream-json</code></li>
@@ -286,8 +289,8 @@
     <p class="phase__desc">Full analytics with token breakdowns, Bedrock cost tracking, daily charts.</p>
     <ul class="checklist">
       <li><span class="check check--todo"></span> Usage aggregation service (by day, model, project)</li>
-      <li><span class="check check--todo"></span> Bedrock pricing mapper (model ID → $/token)</li>
-      <li><span class="check check--todo"></span> Usage views — overview, metrics, cost breakdown charts</li>
+      <li><span class="check check--done">&#10003;</span> Bedrock pricing mapper (model ID → $/token) — <code>gateway/services/pricing.ts</code></li>
+      <li><span class="check check--todo"></span> Usage views — metrics, cost breakdown charts, daily trends</li>
       <li><span class="check check--todo"></span> Multi-project usage comparison</li>
     </ul>
   </div>
@@ -296,8 +299,8 @@
   <h2>Feature Backlog</h2>
   <div class="features">
     <div class="feat">
-      <div class="feat__name">Cost Tracking</div>
-      <div class="feat__desc">Estimate spend from token counts + model-specific Bedrock rates. JSONL doesn't store cost directly.</div>
+      <div class="feat__name">Cost Breakdown Charts</div>
+      <div class="feat__desc">Aggregate cost by day/model/project and visualize trends. Basic total estimation already in overview via <code>pricing.ts</code>.</div>
       <span class="feat__tag tag--p3">Phase 3</span>
     </div>
     <div class="feat">
@@ -336,8 +339,8 @@
       <span class="feat__tag tag--idea">Idea</span>
     </div>
     <div class="feat">
-      <div class="feat__name">Settings Page</div>
-      <div class="feat__desc">Expand settings with more preferences: theme, default cwd, notification sounds, auto-approve patterns.</div>
+      <div class="feat__name">Extended Settings</div>
+      <div class="feat__desc">Expand settings beyond model selector: default cwd, notification sounds, auto-approve patterns, gateway URL.</div>
       <span class="feat__tag tag--idea">Idea</span>
     </div>
   </div>
@@ -414,11 +417,11 @@
 npm run dev          # Start both UI (:5173) and gateway (:18800)
 npm run dev:ui       # Vite dev server only
 npm run dev:gateway  # Gateway server only
-npm test             # Run all ~166 tests
+npm test             # Run all ~213 tests
 npm run test:watch   # Tests in watch mode
 npm run build        # Production build → dist/</pre>
 
-  <p class="updated">Last updated: 2026-04-01 — Phase 1 + Phase 2 complete, Phase 2.5 in progress (7/9 items done), ~166 tests passing</p>
+  <p class="updated">Last updated: 2026-04-01 — Phase 1 + Phase 2 complete, Phase 2.5 nearly done (11/12 items), 213 tests across 13 files</p>
 
 </div>
 </body>

@@ -56,9 +56,10 @@ vi.mock("../../gateway/services/claude-cli.ts", () => ({
   generateTitle: vi.fn().mockResolvedValue("Generated Title"),
 }));
 
+import { EventEmitter } from "node:events";
 import { handleWsRequest } from "../../gateway/server.ts";
-import { getOverviewStats, listSessions, listProjects, getSessionMessages, renameSession } from "../../gateway/services/session-store.ts";
-import { abortChat, getProcess } from "../../gateway/services/claude-cli.ts";
+import { getOverviewStats, listSessions, listProjects, getSessionMessages, getSessionTranscript, renameSession } from "../../gateway/services/session-store.ts";
+import { startChat, abortChat, getProcess } from "../../gateway/services/claude-cli.ts";
 import type { RequestFrame } from "../../gateway/protocol/frames.ts";
 
 // ── Mock WebSocket ────────────────────────────────────────────────────────
@@ -197,5 +198,73 @@ describe("handleWsRequest", () => {
     const frame = ws.lastFrame();
     expect(frame.error.code).toBe("UNKNOWN_METHOD");
     expect(frame.error.message).toContain("nonexistent.method");
+  });
+
+  // ── sessions.summarize ────────────────────────────────────────────────
+
+  it("sessions.summarize (valid) → starts summary chat", async () => {
+    const mockProc = new EventEmitter();
+    vi.mocked(startChat).mockReturnValueOnce(mockProc as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("sessions.summarize", {
+      sessionId: "s1",
+      projectId: "p1",
+    }));
+
+    expect(getSessionTranscript).toHaveBeenCalledWith("s1", "p1");
+    expect(startChat).toHaveBeenCalled();
+    const args = vi.mocked(startChat).mock.calls[0];
+    expect(args[0]).toMatch(/^summary-s1-/);
+    expect(args[1].noSession).toBe(true);
+  });
+
+  it("sessions.summarize (missing sessionId) → errResponse INVALID_PARAMS", async () => {
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("sessions.summarize", {}));
+
+    const frame = ws.lastFrame();
+    expect(frame.error.code).toBe("INVALID_PARAMS");
+  });
+
+  it("sessions.summarize (no transcript) → errResponse NOT_FOUND", async () => {
+    vi.mocked(getSessionTranscript).mockResolvedValueOnce(null);
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("sessions.summarize", { sessionId: "missing" }));
+
+    const frame = ws.lastFrame();
+    expect(frame.error.code).toBe("NOT_FOUND");
+  });
+
+  // ── chat.send ─────────────────────────────────────────────────────────
+
+  it("chat.send (valid) → emits chat.started event", async () => {
+    const mockProc = new EventEmitter();
+    vi.mocked(startChat).mockReturnValueOnce(mockProc as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("chat.send", {
+      prompt: "hello",
+      chatId: "c1",
+    }));
+
+    expect(startChat).toHaveBeenCalledWith("c1", expect.objectContaining({
+      prompt: "hello",
+      interactive: true,
+    }));
+
+    // Should have sent a chat.started event
+    const frames = ws._sent.map((s: string) => JSON.parse(s));
+    const started = frames.find((f: Record<string, unknown>) => f.event === "chat.started");
+    expect(started).toBeDefined();
+    expect(started.data).toEqual({ chatId: "c1" });
+  });
+
+  it("chat.send (missing prompt) → errResponse INVALID_PARAMS", async () => {
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("chat.send", { chatId: "c1" }));
+
+    const frame = ws.lastFrame();
+    expect(frame.error.code).toBe("INVALID_PARAMS");
   });
 });

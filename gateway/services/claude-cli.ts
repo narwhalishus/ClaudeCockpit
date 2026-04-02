@@ -48,6 +48,7 @@ export class ClaudeProcess extends EventEmitter {
   private proc: ChildProcess | null = null;
   private buffer = "";
   private _pendingApproval: { requestId: string; request: unknown } | null = null;
+  private killTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private request: ChatRequest) {
     super();
@@ -72,6 +73,9 @@ export class ClaudeProcess extends EventEmitter {
       this.buffer += data.toString();
       this.processBuffer();
     });
+    this.proc.stdout?.on("error", (err) => {
+      this.emit("error", err);
+    });
 
     // Handle stderr
     this.proc.stderr?.on("data", (data: Buffer) => {
@@ -83,9 +87,24 @@ export class ClaudeProcess extends EventEmitter {
         } satisfies ChatChunk);
       }
     });
+    this.proc.stderr?.on("error", (err) => {
+      this.emit("error", err);
+    });
+
+    // Handle stdin errors (EPIPE is expected when process exits before write completes)
+    this.proc.stdin?.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code !== "EPIPE") {
+        this.emit("error", err);
+      }
+    });
 
     // Handle process exit
     this.proc.on("close", (code) => {
+      // Clean up kill timer if process exits naturally
+      if (this.killTimer) {
+        clearTimeout(this.killTimer);
+        this.killTimer = null;
+      }
       // Process any remaining buffer
       if (this.buffer.trim()) {
         this.processBuffer();
@@ -118,7 +137,8 @@ export class ClaudeProcess extends EventEmitter {
     if (this.proc && !this.proc.killed) {
       this.proc.kill("SIGTERM");
       // Force kill after 5 seconds if still alive
-      setTimeout(() => {
+      this.killTimer = setTimeout(() => {
+        this.killTimer = null;
         if (this.proc && !this.proc.killed) {
           this.proc.kill("SIGKILL");
         }
@@ -332,17 +352,17 @@ export function abortChat(chatId: string): boolean {
 export async function generateTitle(firstPrompt: string): Promise<string | null> {
   const prompt = `Generate a short title (3-5 words, max 50 characters) for a conversation that starts with the message below. Reply with ONLY the title, no quotes, no punctuation at the end.\n\nMessage: ${firstPrompt.slice(0, 300)}`;
 
+  const proc = new ClaudeProcess({
+    prompt,
+    maxBudget: TITLE_GENERATION_MAX_BUDGET,
+    noSession: true,
+  });
+
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       proc.abort();
       resolve(null);
     }, TITLE_GENERATION_TIMEOUT_MS);
-
-    const proc = new ClaudeProcess({
-      prompt,
-      maxBudget: TITLE_GENERATION_MAX_BUDGET,
-      noSession: true,
-    });
 
     proc.on("result", (data: Record<string, unknown>) => {
       clearTimeout(timeout);

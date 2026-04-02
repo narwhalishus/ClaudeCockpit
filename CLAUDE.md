@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — starts both Vite dev server (:5173) and gateway server (:18800) concurrently
 - `npm run dev:ui` — Vite frontend only
 - `npm run dev:gateway` — gateway server only (uses `tsx watch`)
-- `npm test` — run all tests (`vitest run`, ~166 tests)
+- `npm test` — run all tests (`vitest run`, ~213 tests)
 - `npm run test:watch` — tests in watch mode
 - `npx vitest run tests/gateway/session-store.test.ts` — run a single test file
 - `npm run build` — production build to `dist/`
@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Phase 1 (Static Cockpit)**: Complete — read-only views for overview, sessions, projects
 - **Phase 2 (Gateway + Live Chat)**: Complete — WebSocket streaming, chat-as-session-cockpit, session resume
-- **Phase 2.5 (Chat Refinements)**: In progress — session detail sidebar done; remaining: model selector, conversation summary, structured user messages
+- **Phase 2.5 (Chat Refinements)**: In progress — session detail sidebar, model selector (settings + per-session override), conversation summary, overview redesign (6 stat cards with cost/uptime) done; remaining: structured user messages
 - **Phase 3 (Usage Analytics)**: Planned — token breakdown by day/model/project, Bedrock cost tracking
 
 Full roadmap with checklists: `roadmap.html` | Changelog: `changelog.html`
@@ -53,6 +53,7 @@ Node.js HTTP + WebSocket server on port 18800.
 Key services:
 - `gateway/services/session-store.ts` — JSONL parser + data aggregation. `convertToMessages()` is the most complex function: collapses streaming assistant chunks (same msg ID), matches `tool_result` blocks back to parent assistant message's tool/agent blocks via `tool_use_id`.
 - `gateway/services/claude-cli.ts` — spawns `claude -p --output-format stream-json --verbose`, streams NDJSON as events. Interactive mode adds `--input-format stream-json --permission-mode default` for bidirectional control protocol (tool approval via `control_request`/`control_response`). Prompt written via stdin as JSON. Resume uses `claude -r <session-id>`.
+- `gateway/services/pricing.ts` — Bedrock pricing estimates per model. Used by `computeOverviewStats` for the estimated cost card.
 
 ### Frontend (`ui/`)
 
@@ -61,7 +62,7 @@ Lit web components in **light DOM** (`createRenderRoot() { return this; }`). All
 - `ui/app.ts` — `<cockpit-app>` shell: sidebar nav, **global project selector**, hash-based routing (`#tab/projectId`), dual WS+HTTP data fetching. Owns `selectedProjectId` state and passes it to all views.
 - `ui/gateway.ts` — `GatewayBrowserClient`: request/response matching by frame ID, event subscriptions, exponential backoff reconnection
 - `ui/views/chat.ts` — **Session cockpit**: three-panel layout (collapsible session sidebar + conversation + toggleable detail sidebar). Sessions grouped by day, pinned sessions (localStorage), paginated message history, streaming display with cursor, inline collapsible agent/tool blocks. Detail sidebar shows session metadata (model, tokens, duration, cache, cwd).
-- `ui/views/overview.ts` — stat cards (sessions, projects, tokens, cache)
+- `ui/views/overview.ts` — 6 stat cards (sessions, projects, tokens, est. cost, uptime, avg tokens/session) + recent sessions list
 - `ui/views/projects.ts` — projects grouped by directory
 
 ### Type System
@@ -76,7 +77,7 @@ Interactive chat uses Claude Code's bidirectional control protocol for tool appr
 3. When Claude requests tool approval, it emits `{ type: "control_request", request_id, request }` on stdout
 4. Gateway forwards to UI as `tool.approval` event; UI shows approve/deny banner
 5. User response sent back via `tool.respond` WS method → gateway writes `control_response` to stdin
-6. If the UI disconnects while approval is pending, the gateway auto-denies to prevent `claude -p` from hanging
+6. If the UI disconnects, the gateway auto-denies pending approvals and aborts running processes
 
 ### Testing
 
@@ -85,11 +86,15 @@ Vitest + jsdom. Tests in `tests/` mirror source structure:
 - `tests/gateway/session-store.test.ts` — `summarizeSession`, `consolidateMessages`, `computeOverviewStats`, `buildTranscript`
 - `tests/gateway/convert-messages.test.ts` — `convertToMessages` (streaming dedup, tool attachment, filtering)
 - `tests/gateway/claude-cli.test.ts` — `buildArgs`, `handleParsedLine` (all content block types), `processBuffer`
-- `tests/gateway/server.test.ts` — `handleWsRequest` (mocked services, all WS methods)
-- `tests/gateway/frames.test.ts` — frame serialization/parsing
+- `tests/gateway/server.test.ts` — `handleWsRequest` (mocked services, all WS methods including chat.send and sessions.summarize)
+- `tests/gateway/frames.test.ts` — frame serialization/parsing, round-trips, helper constructors
+- `tests/gateway/pricing.test.ts` — per-model cost estimation
 - `tests/ui/chat.test.ts` — markdown rendering, session titles, sidebar/detail panels, stream handlers, summary
 - `tests/ui/gateway.test.ts` — `GatewayBrowserClient` (request/response matching, events, connection state)
-- `tests/ui/overview.test.ts` — overview component rendering
+- `tests/ui/overview.test.ts` — overview component rendering (6 stat cards, recent sessions)
+- `tests/ui/settings.test.ts` — model selector rendering and localStorage persistence
+- `tests/ui/tool-approval.test.ts` — tool approval banner rendering and actions
+- `tests/ui/app.test.ts` — app shell, project selector, hash routing
 - `tests/ui/format.test.ts` — shared format utilities
 
 Gateway tests are pure unit tests (no filesystem, no real processes). UI tests render Lit components into jsdom, assert DOM via `updateComplete`. To add tests: create a file in `tests/` mirroring the source path, import the function/component, and use vitest helpers.
