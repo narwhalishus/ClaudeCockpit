@@ -7,6 +7,7 @@ import type {
   Project,
 } from "./types.ts";
 import { GatewayBrowserClient } from "./gateway.ts";
+import { shortenHomePath } from "./utils/format.ts";
 import "./views/overview.ts";
 import "./views/chat.ts";
 import "./views/settings.ts";
@@ -151,7 +152,7 @@ export class CockpitApp extends LitElement {
   }
 
   private _shortPath(path: string): string {
-    return path.replace(/^\/Users\/[^/]+/, "~");
+    return shortenHomePath(path);
   }
 
   private _onProjectChange(e: Event) {

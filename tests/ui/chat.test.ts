@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import "../../ui/views/chat.ts";
 import type { CockpitChat } from "../../ui/views/chat.ts";
+import { sanitizeHtml } from "../../ui/views/chat.ts";
 import { renderEl, setProps } from "../helpers.ts";
 
 describe("cockpit-chat markdown rendering", () => {
@@ -1124,5 +1125,145 @@ describe("cockpit-chat tool block styling", () => {
     // No tool-type badge in agent blocks
     const toolType = el.querySelector(".chat__tool-type");
     expect(toolType).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HTML sanitization (XSS prevention)
+// ---------------------------------------------------------------------------
+
+describe("sanitizeHtml", () => {
+  it("strips <script> tags and content", () => {
+    const input = '<p>Hello</p><script>alert("xss")</script><p>World</p>';
+    expect(sanitizeHtml(input)).toBe("<p>Hello</p><p>World</p>");
+  });
+
+  it("strips <script> tags case-insensitively", () => {
+    const input = '<SCRIPT>alert(1)</SCRIPT>';
+    expect(sanitizeHtml(input)).toBe("");
+  });
+
+  it("strips <iframe> tags", () => {
+    const input = '<iframe src="https://evil.com"></iframe>';
+    expect(sanitizeHtml(input)).toBe("");
+  });
+
+  it("strips <style> tags", () => {
+    const input = '<style>body{display:none}</style><p>ok</p>';
+    expect(sanitizeHtml(input)).toBe("<p>ok</p>");
+  });
+
+  it("strips inline event handlers", () => {
+    const input = '<img src="x" onerror="alert(1)">';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain("onerror");
+    expect(result).not.toContain("alert");
+  });
+
+  it("neutralizes javascript: URIs in href", () => {
+    const input = '<a href="javascript:alert(1)">click</a>';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain("javascript:");
+  });
+
+  it("preserves safe HTML elements", () => {
+    const input = '<p>Hello <strong>world</strong></p><ul><li>item</li></ul>';
+    expect(sanitizeHtml(input)).toBe(input);
+  });
+
+  it("preserves insight block HTML", () => {
+    const input = '<div class="chat__insight"><div class="chat__insight-header">★ Insight</div><p>content</p></div>';
+    expect(sanitizeHtml(input)).toBe(input);
+  });
+
+  it("strips <embed> tags", () => {
+    const input = '<embed src="evil.swf"><p>ok</p>';
+    expect(sanitizeHtml(input)).toBe("<p>ok</p>");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// XSS prevention in rendered messages
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat XSS prevention", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("does not execute <script> tags in assistant messages", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "xss-1",
+          role: "assistant",
+          content: 'Check this: <script>window.__xss_fired = true</script> done.',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    // Script should not execute
+    expect((window as any).__xss_fired).toBeUndefined();
+    // Script tag should not be in the DOM
+    expect(el.querySelector("script")).toBeNull();
+  });
+
+  it("does not execute event handlers in assistant messages", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "xss-2",
+          role: "assistant",
+          content: '<img src="x" onerror="window.__xss_img=true">',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    expect((window as any).__xss_img).toBeUndefined();
+    const img = el.querySelector("img");
+    if (img) {
+      expect(img.getAttribute("onerror")).toBeNull();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// localStorage corruption recovery
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat localStorage resilience", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("initializes correctly when pinned-sessions has corrupt JSON", async () => {
+    localStorage.setItem("pinned-sessions", "NOT VALID JSON{{{");
+
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    // Should not throw, and pinnedSessionIds should be an empty Set
+    expect((el as any).pinnedSessionIds).toBeInstanceOf(Set);
+    expect((el as any).pinnedSessionIds.size).toBe(0);
+
+    localStorage.removeItem("pinned-sessions");
+  });
+
+  it("initializes correctly when pinned-sessions is missing", async () => {
+    localStorage.removeItem("pinned-sessions");
+
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    expect((el as any).pinnedSessionIds).toBeInstanceOf(Set);
+    expect((el as any).pinnedSessionIds.size).toBe(0);
   });
 });

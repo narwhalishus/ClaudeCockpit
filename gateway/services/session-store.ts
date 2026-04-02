@@ -31,13 +31,14 @@ export function decodeProjectPath(encoded: string): string {
 async function parseJsonlFile(filePath: string): Promise<RawSessionLine[]> {
   const content = await readFile(filePath, "utf-8");
   const lines: RawSessionLine[] = [];
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
+  const rawLines = content.split("\n");
+  for (let i = 0; i < rawLines.length; i++) {
+    const trimmed = rawLines[i].trim();
     if (!trimmed) continue;
     try {
       lines.push(JSON.parse(trimmed));
     } catch {
-      // Skip malformed lines
+      console.warn(`Malformed JSONL at ${filePath}:${i + 1} — skipping line`);
     }
   }
   return lines;

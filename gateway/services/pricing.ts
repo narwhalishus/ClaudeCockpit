@@ -1,4 +1,9 @@
-/** Model pricing table and cost estimation for Claude API (Bedrock rates). */
+/**
+ * Model pricing table and cost estimation for Claude API (Bedrock rates).
+ *
+ * Source: AWS Bedrock on-demand pricing (us-east-1), last updated 2026-03-15.
+ * Prices are per million tokens (USD). Update when new models or rate changes ship.
+ */
 
 export interface ModelPricing {
   inputPerMTok: number;
@@ -22,13 +27,16 @@ const PRICING_TABLE: { prefix: string; pricing: ModelPricing }[] = [
   },
 ];
 
-/** Default to Sonnet rates for unknown models */
+/** Default to Sonnet rates for unknown models (logged as warning) */
 const DEFAULT_PRICING: ModelPricing = PRICING_TABLE[1].pricing;
 
 /** Get pricing for a model by prefix match (handles date suffixes like claude-sonnet-4-20260301). */
 export function getPricing(model: string): ModelPricing {
   for (const entry of PRICING_TABLE) {
     if (model.startsWith(entry.prefix)) return entry.pricing;
+  }
+  if (model) {
+    console.warn(`Unknown model "${model}" — using default Sonnet pricing for cost estimate`);
   }
   return DEFAULT_PRICING;
 }

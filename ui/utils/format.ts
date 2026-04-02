@@ -24,9 +24,9 @@ export function formatRelativeTime(iso: string, verbose = false): string {
   return `${days}d${suffix}`;
 }
 
-/** @deprecated Use formatRelativeTime(iso, true) instead */
-export function formatRelativeTimeVerbose(iso: string): string {
-  return formatRelativeTime(iso, true);
+/** Shorten an absolute path by replacing the home directory with `~` */
+export function shortenHomePath(path: string): string {
+  return path.replace(/^\/Users\/[^/]+/, "~");
 }
 
 /** Format gateway uptime from an ISO start time (e.g. "45s", "3m 20s", "2h 15m", "1d 4h") */

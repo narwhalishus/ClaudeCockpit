@@ -13,16 +13,40 @@ import type {
   ToolBlock,
   ToolApprovalEvent,
 } from "../types.ts";
-import { formatTokens, formatRelativeTime, formatDuration } from "../utils/format.ts";
-import { MODEL_OPTIONS } from "../constants.ts";
+import { formatTokens, formatRelativeTime, formatDuration, shortenHomePath } from "../utils/format.ts";
+import {
+  MODEL_OPTIONS,
+  CHAT_REQUEST_TIMEOUT_MS,
+  SUMMARY_REQUEST_TIMEOUT_MS,
+  SESSION_PAGE_SIZE,
+  SESSION_OLDER_PAGE_SIZE,
+} from "../constants.ts";
 
 const PINNED_SESSIONS_KEY = "pinned-sessions";
 
-/** Pre-configured Marked instance for rendering assistant messages */
+/** Pre-configured Marked instance for rendering assistant messages. */
 const md = new Marked({
   gfm: true,
   breaks: false,
 });
+
+/** Strip dangerous HTML elements from rendered markdown output to prevent XSS.
+ *  Uses a blocklist of elements (script, iframe, etc.) and event handler attributes.
+ *  Runs AFTER marked rendering so code blocks and insight blocks are preserved. */
+export function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script\s*>/gi, "")
+    .replace(/<\/script\s*>/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe\s*>/gi, "")
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object\s*>/gi, "")
+    .replace(/<embed\b[^>]*\/?>/gi, "")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style\s*>/gi, "")
+    .replace(/<link\b[^>]*\/?>/gi, "")
+    .replace(/<meta\b[^>]*\/?>/gi, "")
+    .replace(/<base\b[^>]*\/?>/gi, "")
+    .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/\bhref\s*=\s*["']?\s*javascript\s*:/gi, 'href="');
+}
 
 /**
  * Preprocess markdown to convert ★ Insight blocks into HTML callouts
@@ -205,7 +229,7 @@ export class CockpitChat extends LitElement {
   @state() private sidebarOpen = true;
   @state() private detailOpen = false;
   @state() private pinnedSessionIds: Set<string> = new Set(
-    JSON.parse(localStorage.getItem(PINNED_SESSIONS_KEY) ?? "[]")
+    (() => { try { return JSON.parse(localStorage.getItem(PINNED_SESSIONS_KEY) ?? "[]"); } catch { return []; } })()
   );
   @state() private summaryContent = "";
   @state() private summarizing = false;
@@ -302,7 +326,7 @@ export class CockpitChat extends LitElement {
       const result = (await this.gateway.request("sessions.messages", {
         sessionId,
         projectId: this.projectId || undefined,
-        limit: 50,
+        limit: SESSION_PAGE_SIZE,
       })) as SessionMessagesResult;
       this.messages = result.messages;
       this.hasMoreHistory = result.hasMore;
@@ -336,7 +360,7 @@ export class CockpitChat extends LitElement {
       const result = (await this.gateway.request("sessions.messages", {
         sessionId: this.activeSessionId,
         projectId: this.projectId || undefined,
-        limit: 30,
+        limit: SESSION_OLDER_PAGE_SIZE,
         beforeIndex: beforeIdx,
       })) as SessionMessagesResult;
       this.messages = [...result.messages, ...this.messages];
@@ -402,11 +426,11 @@ export class CockpitChat extends LitElement {
       s.sessionId === sessionId ? { ...s, customTitle: trimmed } : s
     );
 
-    await this.gateway.request("sessions.rename", {
+    this.gateway.request("sessions.rename", {
       sessionId,
       title: trimmed,
       projectId: this.projectId || undefined,
-    });
+    }).catch((err: unknown) => console.error("Rename failed:", err));
   }
 
   private _onRenameKeyDown(e: KeyboardEvent, sessionId: string) {
@@ -487,7 +511,7 @@ export class CockpitChat extends LitElement {
           cwd,
           model,
         },
-        120_000
+        CHAT_REQUEST_TIMEOUT_MS
       );
     } catch {
       // Handled via events
@@ -530,7 +554,7 @@ export class CockpitChat extends LitElement {
           sessionId: this.activeSessionId,
           projectId: this.projectId || undefined,
         },
-        60_000
+        SUMMARY_REQUEST_TIMEOUT_MS
       );
     } catch {
       // Error handled via summary.error event
@@ -837,8 +861,8 @@ export class CockpitChat extends LitElement {
     if (!session) return nothing;
 
     const displayTitle = session.customTitle || session.firstPrompt || session.sessionId.slice(0, 8) + "...";
-    const shortPath = session.projectPath.replace(/^\/Users\/[^/]+/, "~");
-    const shortCwd = session.cwd.replace(/^\/Users\/[^/]+/, "~");
+    const shortPath = shortenHomePath(session.projectPath);
+    const shortCwd = shortenHomePath(session.cwd);
 
     return html`
       <aside class="chat__detail">
@@ -952,7 +976,7 @@ export class CockpitChat extends LitElement {
         <div class="chat__summary-body">
           ${this.summaryContent
             ? html`<div class="markdown-body">${unsafeHTML(
-                md.parse(this.summaryContent) as string
+                sanitizeHtml(md.parse(this.summaryContent) as string)
               )}</div>`
             : this.summarizing
               ? html`<span class="chat__summary-loading"
@@ -1026,7 +1050,7 @@ export class CockpitChat extends LitElement {
     const isAssistant = msg.role === "assistant";
     const content = msg.content
       ? isAssistant
-        ? html`<div class="markdown-body">${unsafeHTML(md.parse(preprocessInsights(msg.content)) as string)}</div>`
+        ? html`<div class="markdown-body">${unsafeHTML(sanitizeHtml(md.parse(preprocessInsights(msg.content)) as string))}</div>`
         : renderUserContent(msg.content)
       : msg.streaming
         ? html`<span class="chat__cursor"></span>`

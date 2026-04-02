@@ -5,10 +5,10 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   formatTokens,
   formatRelativeTime,
-  formatRelativeTimeVerbose,
   formatDuration,
   formatUptime,
   formatCost,
+  shortenHomePath,
 } from "../../ui/utils/format.ts";
 
 describe("formatTokens", () => {
@@ -52,17 +52,17 @@ describe("formatRelativeTime (compact)", () => {
   });
 });
 
-describe("formatRelativeTimeVerbose", () => {
+describe("formatRelativeTime (verbose)", () => {
   afterEach(() => { vi.useRealTimers(); });
 
   it("returns 'just now' for < 1 minute", () => {
     vi.useFakeTimers({ now: new Date("2026-04-01T12:00:10Z") });
-    expect(formatRelativeTimeVerbose("2026-04-01T12:00:00Z")).toBe("just now");
+    expect(formatRelativeTime("2026-04-01T12:00:00Z", true)).toBe("just now");
   });
 
   it("returns '5m ago'", () => {
     vi.useFakeTimers({ now: new Date("2026-04-01T12:05:00Z") });
-    expect(formatRelativeTimeVerbose("2026-04-01T12:00:00Z")).toBe("5m ago");
+    expect(formatRelativeTime("2026-04-01T12:00:00Z", true)).toBe("5m ago");
   });
 });
 
@@ -110,6 +110,29 @@ describe("formatUptime", () => {
   it("returns '0s' for future start time", () => {
     vi.useFakeTimers({ now: new Date("2026-04-01T12:00:00Z") });
     expect(formatUptime("2026-04-01T13:00:00Z")).toBe("0s");
+  });
+});
+
+describe("shortenHomePath", () => {
+  it("replaces /Users/<user> with ~", () => {
+    expect(shortenHomePath("/Users/bryao/Code/MyProject")).toBe("~/Code/MyProject");
+  });
+
+  it("handles different usernames", () => {
+    expect(shortenHomePath("/Users/alice/projects/app")).toBe("~/projects/app");
+  });
+
+  it("returns non-home paths unchanged", () => {
+    expect(shortenHomePath("/var/log/syslog")).toBe("/var/log/syslog");
+    expect(shortenHomePath("/tmp/test")).toBe("/tmp/test");
+  });
+
+  it("handles root-level home directory", () => {
+    expect(shortenHomePath("/Users/bryao")).toBe("~");
+  });
+
+  it("returns empty string unchanged", () => {
+    expect(shortenHomePath("")).toBe("");
   });
 });
 

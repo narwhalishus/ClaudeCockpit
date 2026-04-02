@@ -45,6 +45,48 @@ describe("parseFrame", () => {
   it("returns null for non-string type", () => {
     expect(parseFrame(JSON.stringify({ type: 123 }))).toBeNull();
   });
+
+  // ── Per-type required field validation ──
+
+  it("returns null for req frame missing id", () => {
+    expect(parseFrame(JSON.stringify({ type: "req", method: "foo" }))).toBeNull();
+  });
+
+  it("returns null for req frame missing method", () => {
+    expect(parseFrame(JSON.stringify({ type: "req", id: "1" }))).toBeNull();
+  });
+
+  it("returns null for res frame missing id", () => {
+    expect(parseFrame(JSON.stringify({ type: "res", result: {} }))).toBeNull();
+  });
+
+  it("returns null for event frame missing event name", () => {
+    expect(parseFrame(JSON.stringify({ type: "event", data: {} }))).toBeNull();
+  });
+
+  it("accepts req frame with all required fields", () => {
+    const frame = parseFrame(JSON.stringify({ type: "req", id: "1", method: "test" }));
+    expect(frame).not.toBeNull();
+    expect(frame!.type).toBe("req");
+  });
+
+  it("accepts res frame with only id", () => {
+    const frame = parseFrame(JSON.stringify({ type: "res", id: "1" }));
+    expect(frame).not.toBeNull();
+    expect(frame!.type).toBe("res");
+  });
+
+  it("accepts event frame with only event name", () => {
+    const frame = parseFrame(JSON.stringify({ type: "event", event: "ping" }));
+    expect(frame).not.toBeNull();
+    expect(frame!.type).toBe("event");
+  });
+
+  it("passes through unknown frame types (forward compat)", () => {
+    const frame = parseFrame(JSON.stringify({ type: "future-type", data: 42 }));
+    expect(frame).not.toBeNull();
+    expect(frame!.type).toBe("future-type");
+  });
 });
 
 describe("serializeFrame", () => {

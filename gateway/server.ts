@@ -27,14 +27,18 @@ import {
 const PORT = 18800;
 const STARTED_AT = new Date().toISOString();
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+} as const;
+
 // ─── HTTP handler (kept for backward compat + health checks) ───────────────
 
 function json(res: ServerResponse, data: unknown, status = 200) {
   res.writeHead(status, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    ...CORS_HEADERS,
   });
   res.end(JSON.stringify(data));
 }
@@ -45,11 +49,7 @@ function notFound(res: ServerResponse) {
 
 async function handleHttp(req: IncomingMessage, res: ServerResponse) {
   if (req.method === "OPTIONS") {
-    res.writeHead(204, {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    });
+    res.writeHead(204, CORS_HEADERS);
     res.end();
     return;
   }
@@ -103,218 +103,234 @@ function send(ws: WebSocket, frame: GatewayFrame) {
   }
 }
 
+// ─── Param helpers ────────────────────────────────────────────────────────
+
+type Params = Record<string, unknown>;
+
+function getString(p: Params, key: string): string | undefined {
+  const v = p[key];
+  return typeof v === "string" ? v : undefined;
+}
+
+function getNumber(p: Params, key: string): number | undefined {
+  const v = p[key];
+  return typeof v === "number" ? v : undefined;
+}
+
+function requireString(p: Params, key: string): string | null {
+  const v = getString(p, key);
+  return v && v.length > 0 ? v : null;
+}
+
+// ─── Individual WS method handlers ────────────────────────────────────────
+
+type WsContext = { ws: WebSocket; id: string; p: Params };
+
+async function handleOverviewGet({ ws, id, p }: WsContext) {
+  const projectId = getString(p, "project");
+  const stats = await getOverviewStats(projectId);
+  send(ws, okResponse(id, { ...stats, gatewayStartedAt: STARTED_AT }));
+}
+
+async function handleSessionsList({ ws, id, p }: WsContext) {
+  const projectId = getString(p, "project");
+  const sessions = await listSessions(projectId);
+  send(ws, okResponse(id, { sessions, count: sessions.length }));
+}
+
+async function handleProjectsList({ ws, id }: WsContext) {
+  const projects = await listProjects();
+  send(ws, okResponse(id, { projects, count: projects.length }));
+}
+
+async function handleSessionsMessages({ ws, id, p }: WsContext) {
+  const sessionId = requireString(p, "sessionId");
+  if (!sessionId) {
+    send(ws, errResponse(id, "INVALID_PARAMS", "sessionId is required"));
+    return;
+  }
+  const projectId = getString(p, "projectId");
+  const limit = getNumber(p, "limit") ?? 50;
+  const beforeIndex = getNumber(p, "beforeIndex");
+  const result = await getSessionMessages(sessionId, projectId, limit, beforeIndex);
+  if (!result) {
+    send(ws, errResponse(id, "NOT_FOUND", "Session not found"));
+    return;
+  }
+  send(ws, okResponse(id, result));
+}
+
+async function handleChatSend({ ws, id, p }: WsContext) {
+  const prompt = requireString(p, "prompt");
+  if (!prompt) {
+    send(ws, errResponse(id, "INVALID_PARAMS", "prompt is required"));
+    return;
+  }
+
+  const chatId = getString(p, "chatId") ?? id;
+  const model = getString(p, "model");
+  const sessionId = getString(p, "sessionId");
+  const cwd = getString(p, "cwd");
+  const isNewSession = !sessionId;
+
+  const proc = startChat(chatId, {
+    prompt,
+    model,
+    sessionId,
+    cwd,
+    interactive: true,
+  });
+
+  trackChat(ws, chatId);
+
+  let newSessionId: string | null = null;
+
+  proc.on("chunk", (chunk) => {
+    send(ws, event("chat.chunk", { chatId, ...chunk }));
+  });
+
+  proc.on("result", (result) => {
+    const data = result as Record<string, unknown>;
+    if (isNewSession && data.session_id) {
+      newSessionId = data.session_id as string;
+    }
+    send(ws, event("chat.result", { chatId, result }));
+  });
+
+  proc.on("error", (err) => {
+    send(ws, event("chat.error", { chatId, message: err.message }));
+  });
+
+  proc.on("close", (code) => {
+    send(ws, event("chat.close", { chatId, exitCode: code }));
+    send(ws, okResponse(id, { chatId, status: "completed" }));
+
+    if (isNewSession && newSessionId) {
+      const sid = newSessionId;
+      generateTitle(prompt).then(async (title) => {
+        if (title) {
+          await renameSession(sid, title);
+          send(ws, event("session.titled", { sessionId: sid, title }));
+        }
+      }).catch((err) => console.error("Title generation failed:", err));
+    }
+  });
+
+  proc.on("tool.approval", (data) => {
+    send(ws, event("tool.approval", { chatId, ...(data as Record<string, unknown>) }));
+  });
+
+  send(ws, event("chat.started", { chatId }));
+}
+
+async function handleChatAbort({ ws, id, p }: WsContext) {
+  const chatId = requireString(p, "chatId");
+  if (!chatId) {
+    send(ws, errResponse(id, "INVALID_PARAMS", "chatId is required"));
+    return;
+  }
+  const aborted = abortChat(chatId);
+  send(ws, okResponse(id, { chatId, aborted }));
+}
+
+async function handleToolRespond({ ws, id, p }: WsContext) {
+  const chatId = requireString(p, "chatId");
+  const requestId = requireString(p, "requestId");
+  const behavior = getString(p, "behavior") as "allow" | "deny" | undefined;
+
+  if (!chatId || !requestId || !behavior) {
+    send(ws, errResponse(id, "INVALID_PARAMS", "chatId, requestId, and behavior are required"));
+    return;
+  }
+
+  const proc = getProcess(chatId);
+  if (!proc) {
+    send(ws, errResponse(id, "NOT_FOUND", "No active process for chatId"));
+    return;
+  }
+
+  const message = getString(p, "message");
+  const written = proc.writeControlResponse(requestId, behavior, message);
+  send(ws, okResponse(id, { chatId, requestId, written }));
+}
+
+async function handleSessionsSummarize({ ws, id, p }: WsContext) {
+  const sessionId = requireString(p, "sessionId");
+  if (!sessionId) {
+    send(ws, errResponse(id, "INVALID_PARAMS", "sessionId is required"));
+    return;
+  }
+
+  const projectId = getString(p, "projectId");
+  const transcript = await getSessionTranscript(sessionId, projectId);
+  if (!transcript) {
+    send(ws, errResponse(id, "NOT_FOUND", "Session not found or empty"));
+    return;
+  }
+
+  const summaryPrompt = `Summarize this Claude Code session for a developer catching up. Be concise and specific.\n\nFormat:\n- **What:** What was being worked on\n- **Changes:** Key changes, decisions, and actions taken\n- **Status:** Current state and any unfinished items\n\nUse file names and technical details. Keep it under 150 words.\n\nTranscript:\n---\n${transcript}\n---`;
+  const summaryId = `summary-${sessionId}-${Date.now()}`;
+
+  const proc = startChat(summaryId, {
+    prompt: summaryPrompt,
+    noSession: true,
+    maxBudget: SUMMARY_MAX_BUDGET,
+  });
+
+  proc.on("chunk", (chunk) => {
+    const c = chunk as { type: string; content?: string };
+    if (c.type === "text" && c.content) {
+      send(ws, event("summary.chunk", { sessionId, content: c.content }));
+    }
+  });
+
+  proc.on("error", (err) => {
+    send(ws, event("summary.error", { sessionId, message: (err as Error).message }));
+  });
+
+  proc.on("close", () => {
+    send(ws, event("summary.done", { sessionId }));
+    send(ws, okResponse(id, { sessionId, status: "completed" }));
+  });
+}
+
+async function handleSessionsRename({ ws, id, p }: WsContext) {
+  const sessionId = requireString(p, "sessionId");
+  const rawTitle = (getString(p, "title") ?? "").trim().slice(0, TITLE_MAX_LENGTH);
+  if (!sessionId || !rawTitle) {
+    send(ws, errResponse(id, "INVALID_PARAMS", "sessionId and non-empty title are required"));
+    return;
+  }
+  const projectId = getString(p, "projectId");
+  const renamed = await renameSession(sessionId, rawTitle, projectId);
+  send(ws, okResponse(id, { sessionId, title: rawTitle, renamed }));
+}
+
+// ─── Dispatch table ───────────────────────────────────────────────────────
+
+const wsHandlers: Record<string, (ctx: WsContext) => Promise<void>> = {
+  "overview.get":       handleOverviewGet,
+  "sessions.list":      handleSessionsList,
+  "projects.list":      handleProjectsList,
+  "sessions.messages":  handleSessionsMessages,
+  "sessions.rename":    handleSessionsRename,
+  "sessions.summarize": handleSessionsSummarize,
+  "chat.send":          handleChatSend,
+  "chat.abort":         handleChatAbort,
+  "tool.respond":       handleToolRespond,
+};
+
 export async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
   const { id, method, params } = req;
-  const p = (params ?? {}) as Record<string, unknown>;
+  const p = (params ?? {}) as Params;
+  const ctx: WsContext = { ws, id, p };
 
   try {
-    switch (method) {
-      case "overview.get": {
-        const projectId = p.project as string | undefined;
-        const stats = await getOverviewStats(projectId);
-        send(ws, okResponse(id, { ...stats, gatewayStartedAt: STARTED_AT }));
-        break;
-      }
-
-      case "sessions.list": {
-        const projectId = p.project as string | undefined;
-        const sessions = await listSessions(projectId);
-        send(ws, okResponse(id, { sessions, count: sessions.length }));
-        break;
-      }
-
-      case "projects.list": {
-        const projects = await listProjects();
-        send(ws, okResponse(id, { projects, count: projects.length }));
-        break;
-      }
-
-      case "sessions.messages": {
-        const sessionId = p.sessionId as string;
-        const projectId = p.projectId as string | undefined;
-        const limit = (p.limit as number) ?? 50;
-        const beforeIndex = p.beforeIndex as number | undefined;
-        if (typeof sessionId !== "string" || !sessionId) {
-          send(ws, errResponse(id, "INVALID_PARAMS", "sessionId is required"));
-          break;
-        }
-        const result = await getSessionMessages(
-          sessionId,
-          projectId,
-          limit,
-          beforeIndex
-        );
-        if (!result) {
-          send(ws, errResponse(id, "NOT_FOUND", "Session not found"));
-          break;
-        }
-        send(ws, okResponse(id, result));
-        break;
-      }
-
-      case "chat.send": {
-        const prompt = p.prompt as string;
-        const chatId = p.chatId as string ?? id;
-        const model = p.model as string | undefined;
-        const sessionId = p.sessionId as string | undefined;
-        const cwd = p.cwd as string | undefined;
-        const isNewSession = !sessionId;
-
-        if (typeof prompt !== "string" || !prompt) {
-          send(ws, errResponse(id, "INVALID_PARAMS", "prompt is required"));
-          break;
-        }
-
-        const proc = startChat(chatId, {
-          prompt,
-          model,
-          sessionId,
-          cwd,
-          interactive: true,
-        });
-
-        trackChat(ws, chatId);
-
-        // Track new session ID from result for title generation
-        let newSessionId: string | null = null;
-
-        // Stream chunks as events
-        proc.on("chunk", (chunk) => {
-          send(ws, event("chat.chunk", { chatId, ...chunk }));
-        });
-
-        proc.on("result", (result) => {
-          const data = result as Record<string, unknown>;
-          if (isNewSession && data.session_id) {
-            newSessionId = data.session_id as string;
-          }
-          send(ws, event("chat.result", { chatId, result }));
-        });
-
-        proc.on("error", (err) => {
-          send(
-            ws,
-            event("chat.error", {
-              chatId,
-              message: err.message,
-            })
-          );
-        });
-
-        proc.on("close", (code) => {
-          send(ws, event("chat.close", { chatId, exitCode: code }));
-          send(ws, okResponse(id, { chatId, status: "completed" }));
-
-          // Auto-generate title for new sessions
-          if (isNewSession && newSessionId) {
-            const sid = newSessionId;
-            generateTitle(prompt).then(async (title) => {
-              if (title) {
-                await renameSession(sid, title);
-                send(ws, event("session.titled", { sessionId: sid, title }));
-              }
-            }).catch((err) => console.error("Title generation failed:", err));
-          }
-        });
-
-        proc.on("tool.approval", (data) => {
-          send(ws, event("tool.approval", { chatId, ...(data as Record<string, unknown>) }));
-        });
-
-        // Acknowledge immediately that the chat started
-        send(ws, event("chat.started", { chatId }));
-        break;
-      }
-
-      case "chat.abort": {
-        const chatId = p.chatId as string;
-        if (typeof chatId !== "string" || !chatId) {
-          send(ws, errResponse(id, "INVALID_PARAMS", "chatId is required"));
-          break;
-        }
-        const aborted = abortChat(chatId);
-        send(ws, okResponse(id, { chatId, aborted }));
-        break;
-      }
-
-      case "tool.respond": {
-        const chatId = p.chatId as string;
-        const requestId = p.requestId as string;
-        const behavior = p.behavior as "allow" | "deny";
-        const message = p.message as string | undefined;
-
-        if (typeof chatId !== "string" || typeof requestId !== "string" || !behavior) {
-          send(ws, errResponse(id, "INVALID_PARAMS", "chatId, requestId, and behavior are required"));
-          break;
-        }
-
-        const proc = getProcess(chatId);
-        if (!proc) {
-          send(ws, errResponse(id, "NOT_FOUND", "No active process for chatId"));
-          break;
-        }
-
-        const written = proc.writeControlResponse(requestId, behavior, message);
-        send(ws, okResponse(id, { chatId, requestId, written }));
-        break;
-      }
-
-      case "sessions.summarize": {
-        const sessionId = p.sessionId as string;
-        const projectId = p.projectId as string | undefined;
-        if (typeof sessionId !== "string" || !sessionId) {
-          send(ws, errResponse(id, "INVALID_PARAMS", "sessionId is required"));
-          break;
-        }
-
-        const transcript = await getSessionTranscript(sessionId, projectId);
-        if (!transcript) {
-          send(ws, errResponse(id, "NOT_FOUND", "Session not found or empty"));
-          break;
-        }
-
-        const summaryPrompt = `Summarize this Claude Code session for a developer catching up. Be concise and specific.\n\nFormat:\n- **What:** What was being worked on\n- **Changes:** Key changes, decisions, and actions taken\n- **Status:** Current state and any unfinished items\n\nUse file names and technical details. Keep it under 150 words.\n\nTranscript:\n---\n${transcript}\n---`;
-        const summaryId = `summary-${sessionId}-${Date.now()}`;
-
-        const proc = startChat(summaryId, {
-          prompt: summaryPrompt,
-          noSession: true,
-          maxBudget: SUMMARY_MAX_BUDGET,
-        });
-
-        proc.on("chunk", (chunk) => {
-          const c = chunk as { type: string; content?: string };
-          if (c.type === "text" && c.content) {
-            send(ws, event("summary.chunk", { sessionId, content: c.content }));
-          }
-        });
-
-        proc.on("error", (err) => {
-          send(ws, event("summary.error", { sessionId, message: (err as Error).message }));
-        });
-
-        proc.on("close", () => {
-          send(ws, event("summary.done", { sessionId }));
-          send(ws, okResponse(id, { sessionId, status: "completed" }));
-        });
-
-        break;
-      }
-
-      case "sessions.rename": {
-        const sessionId = p.sessionId as string;
-        const rawTitle = (p.title as string ?? "").trim().slice(0, TITLE_MAX_LENGTH);
-        if (typeof sessionId !== "string" || !sessionId || !rawTitle) {
-          send(ws, errResponse(id, "INVALID_PARAMS", "sessionId and non-empty title are required"));
-          break;
-        }
-        const renamed = await renameSession(sessionId, rawTitle, p.projectId as string | undefined);
-        send(ws, okResponse(id, { sessionId, title: rawTitle, renamed }));
-        break;
-      }
-
-      default:
-        send(ws, errResponse(id, "UNKNOWN_METHOD", `Unknown method: ${method}`));
+    const handler = wsHandlers[method];
+    if (handler) {
+      await handler(ctx);
+    } else {
+      send(ws, errResponse(id, "UNKNOWN_METHOD", `Unknown method: ${method}`));
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Internal error";

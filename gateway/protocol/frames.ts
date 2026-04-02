@@ -53,13 +53,25 @@ export type RequestMethod =
   | "chat.abort"
   | "tool.respond";
 
-/** Parse a raw WebSocket message into a frame */
+/** Parse a raw WebSocket message into a frame, validating required fields per type */
 export function parseFrame(raw: string): GatewayFrame | null {
   try {
     const frame = JSON.parse(raw);
-    if (frame && typeof frame.type === "string") {
-      return frame as GatewayFrame;
+    if (!frame || typeof frame.type !== "string") return null;
+
+    switch (frame.type) {
+      case "req":
+        if (typeof frame.id !== "string" || typeof frame.method !== "string") return null;
+        break;
+      case "res":
+        if (typeof frame.id !== "string") return null;
+        break;
+      case "event":
+        if (typeof frame.event !== "string") return null;
+        break;
     }
+
+    return frame as GatewayFrame;
   } catch {
     // Malformed JSON
   }
