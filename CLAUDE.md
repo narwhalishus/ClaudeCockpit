@@ -17,8 +17,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — starts both Vite dev server (:5173) and gateway server (:18800) concurrently
 - `npm run dev:ui` — Vite frontend only
 - `npm run dev:gateway` — gateway server only (uses `tsx watch`)
-- `npm test` — run all tests (`vitest run`, ~256 tests)
+- `npm test` — run all tests (`vitest run`, ~278 tests)
 - `npm run test:watch` — tests in watch mode
+- `npm run test:integration` — integration tests only
+- `npm run typecheck` — TypeScript type check (`tsc --noEmit`)
+- `npm run ci` — full local pipeline: typecheck + test + build
 - `npx vitest run tests/gateway/session-store.test.ts` — run a single test file
 - `npm run build` — production build to `dist/`
 
@@ -29,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Phase 2.5 (Chat Refinements)**: Complete — session detail sidebar, model selector, conversation summary, overview redesign, structured user messages + per-tool colored symbols, gateway resilience fix
 - **Phase 3 (Usage Analytics)**: Planned — token breakdown by day/model/project, Bedrock cost tracking
 
-Full roadmap with checklists: `roadmap.html` | Changelog: `changelog.html`
+Full roadmap with checklists: `roadmap.html` | Changelog: `changelog.html` | Testing pipeline: `testing.html`
 
 ## Architecture
 
@@ -89,6 +92,7 @@ Vitest + jsdom. Tests in `tests/` mirror source structure:
 - `tests/gateway/session-store.test.ts` — `splitConcatenatedJson`, `summarizeSession`, `consolidateMessages`, `computeOverviewStats`, `buildTranscript`
 - `tests/gateway/convert-messages.test.ts` — `convertToMessages` (streaming dedup, tool attachment, filtering)
 - `tests/gateway/claude-cli.test.ts` — `buildArgs`, `handleParsedLine` (all content block types), `processBuffer`
+- `tests/gateway/integration.test.ts` — cross-layer: real `handleWsRequest` → real `startChat` → real `buildArgs` → mocked `spawn`. Catches seam bugs (e.g. model-during-resume) that unit tests miss.
 - `tests/gateway/server.test.ts` — `handleWsRequest` (mocked services, all WS methods including chat.send and sessions.summarize)
 - `tests/gateway/frames.test.ts` — frame serialization/parsing, round-trips, helper constructors, per-type required field validation
 - `tests/gateway/pricing.test.ts` — per-model cost estimation
@@ -100,7 +104,7 @@ Vitest + jsdom. Tests in `tests/` mirror source structure:
 - `tests/ui/app.test.ts` — app shell, project selector, hash routing
 - `tests/ui/format.test.ts` — shared format utilities including `shortenHomePath`
 
-Gateway tests are pure unit tests (no filesystem, no real processes). UI tests render Lit components into jsdom, assert DOM via `updateComplete`. To add tests: create a file in `tests/` mirroring the source path, import the function/component, and use vitest helpers.
+Gateway unit tests are pure (no filesystem, no real processes). Integration tests (`integration.test.ts`) let real code run through the full server → claude-cli chain, mocking only `child_process.spawn` at the OS boundary. UI tests render Lit components into jsdom, assert DOM via `updateComplete`. To add tests: create a file in `tests/` mirroring the source path, import the function/component, and use vitest helpers. CI runs via GitHub Actions on push/PR: typecheck + test + build (`.github/workflows/ci.yml`).
 
 ## JSONL Data Model
 

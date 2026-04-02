@@ -501,7 +501,9 @@ export class CockpitChat extends LitElement {
       ? this.projectId.replace(/-/g, "/")
       : undefined;
 
-    const model = this.selectedModel ?? this._getDefaultModel() ?? undefined;
+    const model = this.activeSessionId
+      ? undefined
+      : (this.selectedModel ?? this._getDefaultModel() ?? undefined);
 
     try {
       await this.gateway.request(

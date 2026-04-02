@@ -195,7 +195,7 @@ export class ClaudeProcess extends EventEmitter {
       args.push("-r", this.request.sessionId);
     }
 
-    if (this.request.model) {
+    if (this.request.model && !this.request.sessionId) {
       args.push("--model", this.request.model);
     }
 

@@ -349,7 +349,7 @@ export function computeOverviewStats(
 /** Get overview statistics, optionally scoped to a single project */
 export async function getOverviewStats(
   projectId?: string
-): Promise<OverviewStats> {
+): Promise<Omit<OverviewStats, "gatewayStartedAt">> {
   const sessions = await listSessions(projectId);
   const totalProjects = projectId ? 1 : (await listProjects()).length;
   return computeOverviewStats(sessions, totalProjects);

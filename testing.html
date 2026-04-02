@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClaudeCockpit — Testing &amp; Pipeline</title>
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    :root {
+      --bg: #0e1015;
+      --bg-elevated: #191c24;
+      --bg-hover: #1f2330;
+      --card: #161920;
+      --text: #d4d4d8;
+      --text-strong: #f4f4f5;
+      --muted: #838387;
+      --border: #1e2028;
+      --border-strong: #2e3040;
+      --accent: #da7756;
+      --accent-subtle: rgba(218, 119, 86, 0.1);
+      --accent-glow: rgba(218, 119, 86, 0.2);
+      --ok: #22c55e;
+      --ok-subtle: rgba(34, 197, 94, 0.08);
+      --warn: #f59e0b;
+      --warn-subtle: rgba(245, 158, 11, 0.08);
+      --info: #3b82f6;
+      --info-subtle: rgba(59, 130, 246, 0.08);
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 400 15px/1.7 var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { max-width: 900px; margin: 0 auto; padding: 48px 32px 96px; }
+    h1 {
+      font-size: 32px; font-weight: 700; letter-spacing: -0.03em;
+      color: var(--text-strong); margin: 0 0 8px;
+    }
+    h1 span { color: var(--accent); }
+    .subtitle { color: var(--muted); font-size: 15px; margin: 0 0 40px; }
+    h2 {
+      font-size: 20px; font-weight: 650; letter-spacing: -0.02em;
+      color: var(--text-strong); margin: 40px 0 16px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 15px; font-weight: 650; color: var(--text-strong); margin: 24px 0 8px; }
+    p, li { color: var(--text); }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    code {
+      font-family: var(--mono); font-size: 13px;
+      background: var(--bg-elevated); padding: 2px 6px;
+      border-radius: 4px; border: 1px solid var(--border);
+    }
+    pre {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 20px;
+      overflow-x: auto; font-family: var(--mono); font-size: 13px;
+      line-height: 1.6; color: var(--muted);
+    }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 4px; }
+    li::marker { color: var(--muted); }
+
+    /* Pipeline diagram */
+    .arch-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px;
+      font-family: var(--mono); font-size: 13px;
+      line-height: 1.5; color: var(--muted); white-space: pre; overflow-x: auto;
+    }
+
+    /* Pipeline stages */
+    .pipeline { display: grid; gap: 12px; grid-template-columns: repeat(4, 1fr); margin: 16px 0; }
+    .stage {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px; text-align: center;
+      position: relative;
+    }
+    .stage::after {
+      content: "\2192"; position: absolute; right: -12px; top: 50%;
+      transform: translateY(-50%); color: var(--muted); font-size: 16px;
+    }
+    .stage:last-child::after { display: none; }
+    .stage__num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; background: var(--accent-subtle);
+      color: var(--accent); font-size: 12px; font-weight: 700;
+      border-radius: 6px; margin-bottom: 8px;
+    }
+    .stage__title { font-weight: 650; color: var(--text-strong); font-size: 14px; margin-bottom: 4px; }
+    .stage__desc { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    /* Layer table */
+    .layer-table {
+      width: 100%; border-collapse: collapse; margin: 16px 0;
+      font-size: 14px;
+    }
+    .layer-table th {
+      text-align: left; padding: 10px 14px; font-weight: 650;
+      color: var(--text-strong); border-bottom: 2px solid var(--border-strong);
+      font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .layer-table td {
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .layer-table tr:last-child td { border-bottom: none; }
+    .layer-table tbody tr {
+      background: var(--card);
+    }
+    .layer-table tbody tr:hover {
+      background: var(--bg-hover);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 3px 10px; border-radius: 9999px; white-space: nowrap;
+    }
+    .badge--auto { background: var(--ok-subtle); color: var(--ok); }
+    .badge--manual { background: var(--accent-subtle); color: var(--accent); }
+    .badge--ci { background: var(--info-subtle); color: var(--info); }
+
+    /* Cards (reused from roadmap features) */
+    .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 20px;
+    }
+    .card__name { font-weight: 650; color: var(--text-strong); font-size: 14px; margin-bottom: 4px; }
+    .card__desc { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+    /* Principles (reused from roadmap) */
+    .principles { display: grid; gap: 10px; }
+    .principle {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 16px; background: var(--card);
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+    }
+    .principle__num {
+      flex-shrink: 0; width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--accent-subtle); color: var(--accent);
+      font-size: 12px; font-weight: 700; border-radius: 6px;
+    }
+    .principle__text { font-size: 14px; }
+    .principle__text strong { color: var(--text-strong); }
+
+    /* Timestamp */
+    .updated {
+      margin-top: 48px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
+
+    @media (max-width: 700px) {
+      .pipeline { grid-template-columns: 1fr; }
+      .stage::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Claude<span>Cockpit</span></h1>
+  <p class="subtitle">
+    Testing &amp; Deployment Pipeline
+    <br>How code moves from edit to verified: local tests, CI, browser verification.
+  </p>
+
+  <!-- ============================================================ -->
+  <h2>Pipeline Overview</h2>
+  <p>Every change follows this path. No step is optional.</p>
+
+  <div class="pipeline">
+    <div class="stage">
+      <div class="stage__num">1</div>
+      <div class="stage__title">Implement</div>
+      <div class="stage__desc">Edit code. Agent Browser for visual checks. Playwright MCP for debugging.</div>
+    </div>
+    <div class="stage">
+      <div class="stage__num">2</div>
+      <div class="stage__title">Local Test</div>
+      <div class="stage__desc"><code>npm test</code> runs unit + integration tests (~278 tests).</div>
+    </div>
+    <div class="stage">
+      <div class="stage__num">3</div>
+      <div class="stage__title">Push</div>
+      <div class="stage__desc"><code>git push</code> to trigger CI on the remote.</div>
+    </div>
+    <div class="stage">
+      <div class="stage__num">4</div>
+      <div class="stage__title">GitHub CI</div>
+      <div class="stage__desc"><code>tsc --noEmit</code>, <code>vitest run</code>, <code>vite build</code>.</div>
+    </div>
+  </div>
+
+  <div class="arch-box">Implement         Local Test          Push         GitHub CI
+    |                   |                |              |
+ Edit code         npm test          git push      tsc --noEmit
+ Agent Browser     (unit+integ)                    vitest run
+ Playwright MCP                                    vite build
+    |                   |                |              |
+    v                   v                v              v
+ Code ready      Logic verified     Remote      Types + tests + build</div>
+
+  <!-- ============================================================ -->
+  <h2>Test Layers</h2>
+  <p>Each layer catches different classes of bugs. They complement each other.</p>
+
+  <table class="layer-table">
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Tool</th>
+        <th>Runs When</th>
+        <th>What It Catches</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Unit tests</strong></td>
+        <td>vitest + jsdom</td>
+        <td><span class="badge badge--auto">npm test</span> <span class="badge badge--ci">CI</span></td>
+        <td>Logic bugs, component rendering, API contracts, frame serialization</td>
+      </tr>
+      <tr>
+        <td><strong>Integration tests</strong></td>
+        <td>vitest + spawn mock</td>
+        <td><span class="badge badge--auto">npm test</span> <span class="badge badge--ci">CI</span></td>
+        <td>Cross-boundary bugs (server &rarr; CLI arg wiring, event pipeline, control protocol)</td>
+      </tr>
+      <tr>
+        <td><strong>AI visual verification</strong></td>
+        <td>Agent Browser / Playwright MCP</td>
+        <td><span class="badge badge--manual">During dev</span></td>
+        <td>Rendering issues, layout breakage, UX regressions</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ============================================================ -->
+  <h2>Running Tests Locally</h2>
+  <pre>npm test                  # All tests (unit + integration)
+npm run test:integration  # Integration tests only
+npm run test:watch        # Watch mode for development
+npm run typecheck         # TypeScript type check (tsc --noEmit)
+npm run ci                # Full local pipeline: typecheck + test + build</pre>
+  <p><code>npm run ci</code> is the local equivalent of the GitHub Actions pipeline. Run it before pushing to catch issues early.</p>
+
+  <!-- ============================================================ -->
+  <h2>CI Pipeline</h2>
+  <p>GitHub Actions runs on every push to <code>main</code> and on pull requests. Config: <a href=".github/workflows/ci.yml"><code>.github/workflows/ci.yml</code></a></p>
+
+  <div class="principles">
+    <div class="principle">
+      <div class="principle__num">1</div>
+      <div class="principle__text"><strong>Type check</strong> &mdash; <code>npx tsc --noEmit</code>. Catches type errors without emitting files. Fails the build if any type is wrong.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">2</div>
+      <div class="principle__text"><strong>Tests</strong> &mdash; <code>npm test</code> (vitest run). Runs all unit and integration tests. Any test failure blocks the build.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">3</div>
+      <div class="principle__text"><strong>Build</strong> &mdash; <code>npm run build</code> (vite build). Verifies the production bundle compiles. Catches import errors and missing modules.</div>
+    </div>
+  </div>
+
+  <h3>What's NOT in CI (and why)</h3>
+  <ul>
+    <li><strong>E2E browser tests</strong> &mdash; Gateway reads <code>~/.claude/projects/</code> and spawns <code>claude -p</code>. Neither exists in a GitHub Actions runner.</li>
+    <li><strong>Remote deployment</strong> &mdash; Gateway must run locally. SPA is non-functional without it.</li>
+  </ul>
+
+  <!-- ============================================================ -->
+  <h2>Integration Test Architecture</h2>
+  <p>File: <a href="tests/gateway/integration.test.ts"><code>tests/gateway/integration.test.ts</code></a></p>
+
+  <p>Integration tests let the <strong>real</strong> request chain run &mdash; <code>handleWsRequest</code> &rarr; <code>startChat</code> &rarr; <code>ClaudeProcess.buildArgs</code> &rarr; <code>spawn</code> &mdash; mocking only at the OS boundary:</p>
+
+  <div class="arch-box">  Unit tests (server.test.ts)        Integration tests
+  ─────────────────────────        ──────────────────────
+  handleWsRequest  [REAL]          handleWsRequest  [REAL]
+        |                                |
+  startChat      [MOCKED]          startChat        [REAL]
+                                         |
+                                   ClaudeProcess    [REAL]
+                                         |
+                                   buildArgs        [REAL]
+                                         |
+                                   spawn            [MOCKED]
+                                         |
+                                   PassThrough      fake process</div>
+
+  <h3>The spawn mock</h3>
+  <p>Only <code>gateway/services/claude-cli.ts</code> imports <code>child_process</code>. The mock replaces <code>spawn</code> with a factory that returns a controllable fake process:</p>
+  <pre>const proc = Object.assign(new EventEmitter(), {
+  stdout: new PassThrough(),  // feed NDJSON to simulate Claude output
+  stderr: new PassThrough(),  // feed error text
+  stdin:  new PassThrough(),  // capture prompt + control_response writes
+  killed: false,
+  kill:   vi.fn(),
+  pid:    12345,
+});</pre>
+  <p>This lets tests feed data through stdout (simulating Claude's NDJSON stream), verify events arrive on the WebSocket, and inspect what gets written to stdin (prompt format, control responses).</p>
+
+  <h3>What this catches</h3>
+  <p>The <strong>model-during-resume bug</strong> is the motivating example. Server.ts passed <code>model</code> to <code>startChat</code>, and <code>buildArgs</code> correctly omitted <code>--model</code> when <code>sessionId</code> was set. Unit tests couldn't catch this because they mocked the service boundary between server and claude-cli. Integration tests verify the actual spawn args.</p>
+
+  <h3>Test coverage (5 tests)</h3>
+  <table class="layer-table">
+    <thead>
+      <tr><th>Test</th><th>What It Verifies</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Resume: no --model</td><td>Spawn args have <code>-r &lt;id&gt;</code>, omit <code>--model</code></td></tr>
+      <tr><td>New session: has --model</td><td>Spawn args include <code>--model &lt;name&gt;</code></td></tr>
+      <tr><td>Interactive flags</td><td><code>--input-format stream-json --permission-mode default</code> always present</td></tr>
+      <tr><td>Full event pipeline</td><td>stdout NDJSON &rarr; WS events: started &rarr; chunk &rarr; result &rarr; close &rarr; response</td></tr>
+      <tr><td>Tool approval round-trip</td><td>control_request on stdout &rarr; tool.approval WS &rarr; tool.respond &rarr; control_response on stdin</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============================================================ -->
+  <h2>Browser Verification Tools</h2>
+  <p>These are <strong>development-time tools</strong> used within Claude Code conversations, not automated tests. They don't run in CI.</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card__name">Agent Browser &mdash; Visual Verification</div>
+      <div class="card__desc">
+        Quick smoke checks after UI changes. Accessibility-tree approach, ~10x more token-efficient than pixel screenshots.
+        <br><br>
+        <strong>Use for:</strong> "Does the chat view render three panels?", "Do the 6 stat cards appear?", "Does the thinking block collapse?"
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__name">Playwright MCP &mdash; Deep Debugging</div>
+      <div class="card__desc">
+        Escalate when something looks wrong and you need specifics. Full browser control via MCP tools.
+        <br><br>
+        <strong>Use for:</strong> <code>browser_snapshot</code> (DOM tree), <code>browser_console_messages</code> (JS errors), <code>browser_network_requests</code> (WS frames), <code>browser_take_screenshot</code>.
+      </div>
+    </div>
+  </div>
+
+  <h3>Recommended workflow</h3>
+  <pre>1. Edit code
+2. npm test                          &larr; fast, catches logic + integration bugs
+3. Agent Browser: visual verify      &larr; catches rendering/wiring issues
+4. If wrong -> Playwright MCP        &larr; debug the DOM/network/console
+5. Commit + push                     &larr; triggers CI</pre>
+
+  <!-- ============================================================ -->
+  <h2>Deployment</h2>
+  <p>ClaudeCockpit runs locally. The gateway reads <code>~/.claude/projects/</code> JSONL files and spawns <code>claude -p</code> subprocesses &mdash; both require a local macOS environment.</p>
+
+  <pre>npm run dev                    # Development: Vite :5173 + gateway :18800
+npm run build && npm run preview   # Production-like local serving</pre>
+
+  <p>No cloud deployment is needed. The SPA could go to Vercel, but it's non-functional without the local gateway. If remote access is wanted later, a Vercel SPA deploy + SSH tunnel to the gateway is the simplest path.</p>
+
+  <!-- ============================================================ -->
+  <h2>Test File Map</h2>
+  <pre>tests/
+  gateway/
+    integration.test.ts      # Cross-layer: server -> cli -> spawn (5 tests)
+    server.test.ts           # WS handler dispatch, HTTP endpoints
+    claude-cli.test.ts       # buildArgs, handleParsedLine, processBuffer
+    session-store.test.ts    # JSONL parsing, message conversion, stats
+    convert-messages.test.ts # Streaming dedup, tool attachment, filtering
+    frames.test.ts           # Frame serialization, round-trips, validation
+    pricing.test.ts          # Per-model cost estimation
+  ui/
+    chat.test.ts             # Markdown, sidebars, streaming, XSS sanitization
+    gateway.test.ts          # WS client, request matching, reconnection
+    overview.test.ts         # Stat cards, recent sessions
+    settings.test.ts         # Model selector, localStorage
+    tool-approval.test.ts    # Approval banner rendering
+    app.test.ts              # Shell, project selector, routing
+    format.test.ts           # Format utilities</pre>
+
+  <p class="updated">Last updated: 2026-04-02 — Pipeline established: integration tests + GitHub Actions CI. 278 tests across 14 files.</p>
+
+</div>
+</body>
+</html>

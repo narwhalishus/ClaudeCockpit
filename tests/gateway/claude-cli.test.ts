@@ -49,6 +49,25 @@ describe("ClaudeProcess.buildArgs", () => {
     expect(args).toContain("--model");
     expect(args).toContain("claude-sonnet-4-6");
   });
+
+  it("does not include --model when sessionId is set (resume)", () => {
+    const proc = new ClaudeProcess({ prompt: "test", sessionId: "sess-123", model: "claude-opus-4-6" });
+    const args = proc.buildArgs();
+
+    expect(args).toContain("-r");
+    expect(args).toContain("sess-123");
+    expect(args).not.toContain("--model");
+    expect(args).not.toContain("claude-opus-4-6");
+  });
+
+  it("includes --model for new session without sessionId", () => {
+    const proc = new ClaudeProcess({ prompt: "test", model: "claude-sonnet-4-6" });
+    const args = proc.buildArgs();
+
+    expect(args).not.toContain("-r");
+    expect(args).toContain("--model");
+    expect(args).toContain("claude-sonnet-4-6");
+  });
 });
 
 describe("ClaudeProcess.handleParsedLine — control_request", () => {

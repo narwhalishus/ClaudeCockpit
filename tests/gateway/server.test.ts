@@ -264,6 +264,44 @@ describe("handleWsRequest", () => {
     expect(started.data).toEqual({ chatId: "c1" });
   });
 
+  it("chat.send passes model to startChat for new session", async () => {
+    const mockProc = new EventEmitter();
+    vi.mocked(startChat).mockReturnValueOnce(mockProc as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("chat.send", {
+      prompt: "hello",
+      chatId: "c2",
+      model: "claude-sonnet-4-6",
+    }));
+
+    expect(startChat).toHaveBeenCalledWith("c2", expect.objectContaining({
+      prompt: "hello",
+      model: "claude-sonnet-4-6",
+      interactive: true,
+    }));
+  });
+
+  it("chat.send passes sessionId and model through to startChat", async () => {
+    const mockProc = new EventEmitter();
+    vi.mocked(startChat).mockReturnValueOnce(mockProc as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("chat.send", {
+      prompt: "continue",
+      chatId: "c3",
+      sessionId: "sess-456",
+      model: "claude-opus-4-6",
+    }));
+
+    expect(startChat).toHaveBeenCalledWith("c3", expect.objectContaining({
+      prompt: "continue",
+      sessionId: "sess-456",
+      model: "claude-opus-4-6",
+      interactive: true,
+    }));
+  });
+
   it("chat.send (missing prompt) → errResponse INVALID_PARAMS", async () => {
     const ws = mockWs();
     await handleWsRequest(ws as never, req("chat.send", { chatId: "c1" }));
