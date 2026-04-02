@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClaudeCockpit — Contributing</title>
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    :root {
+      --bg: #0e1015;
+      --bg-elevated: #191c24;
+      --bg-hover: #1f2330;
+      --card: #161920;
+      --text: #d4d4d8;
+      --text-strong: #f4f4f5;
+      --muted: #838387;
+      --border: #1e2028;
+      --border-strong: #2e3040;
+      --accent: #da7756;
+      --accent-subtle: rgba(218, 119, 86, 0.1);
+      --accent-glow: rgba(218, 119, 86, 0.2);
+      --ok: #22c55e;
+      --ok-subtle: rgba(34, 197, 94, 0.08);
+      --warn: #f59e0b;
+      --warn-subtle: rgba(245, 158, 11, 0.08);
+      --info: #3b82f6;
+      --info-subtle: rgba(59, 130, 246, 0.08);
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 400 15px/1.7 var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { max-width: 900px; margin: 0 auto; padding: 48px 32px 96px; }
+    h1 {
+      font-size: 32px; font-weight: 700; letter-spacing: -0.03em;
+      color: var(--text-strong); margin: 0 0 8px;
+    }
+    h1 span { color: var(--accent); }
+    .subtitle { color: var(--muted); font-size: 15px; margin: 0 0 40px; }
+    h2 {
+      font-size: 20px; font-weight: 650; letter-spacing: -0.02em;
+      color: var(--text-strong); margin: 40px 0 16px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 15px; font-weight: 650; color: var(--text-strong); margin: 24px 0 8px; }
+    h4 { font-size: 14px; font-weight: 600; color: var(--text-strong); margin: 20px 0 6px; }
+    p, li { color: var(--text); }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    code {
+      font-family: var(--mono); font-size: 13px;
+      background: var(--bg-elevated); padding: 2px 6px;
+      border-radius: 4px; border: 1px solid var(--border);
+    }
+    pre {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 20px;
+      overflow-x: auto; font-family: var(--mono); font-size: 13px;
+      line-height: 1.6; color: var(--muted);
+    }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 4px; }
+    li::marker { color: var(--muted); }
+    ol li { margin-bottom: 8px; }
+
+    /* Pipeline stages */
+    .pipeline { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin: 16px 0; }
+    .stage {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px; text-align: center;
+      position: relative;
+    }
+    .stage::after {
+      content: "\2192"; position: absolute; right: -12px; top: 50%;
+      transform: translateY(-50%); color: var(--muted); font-size: 16px;
+    }
+    .stage:last-child::after { display: none; }
+    .stage__num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; background: var(--accent-subtle);
+      color: var(--accent); font-size: 12px; font-weight: 700;
+      border-radius: 6px; margin-bottom: 8px;
+    }
+    .stage__title { font-weight: 650; color: var(--text-strong); font-size: 14px; margin-bottom: 4px; }
+    .stage__desc { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    /* Principles */
+    .principles { display: grid; gap: 10px; }
+    .principle {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 16px; background: var(--card);
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+    }
+    .principle__num {
+      flex-shrink: 0; width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--accent-subtle); color: var(--accent);
+      font-size: 12px; font-weight: 700; border-radius: 6px;
+    }
+    .principle__text { font-size: 14px; }
+    .principle__text strong { color: var(--text-strong); }
+
+    /* Cards */
+    .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 20px;
+    }
+    .card__name { font-weight: 650; color: var(--text-strong); font-size: 14px; margin-bottom: 4px; }
+    .card__desc { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+    /* Architecture diagram */
+    .arch-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px;
+      font-family: var(--mono); font-size: 13px;
+      line-height: 1.5; color: var(--muted); white-space: pre; overflow-x: auto;
+    }
+
+    /* Layer table */
+    .layer-table {
+      width: 100%; border-collapse: collapse; margin: 16px 0;
+      font-size: 14px;
+    }
+    .layer-table th {
+      text-align: left; padding: 10px 14px; font-weight: 650;
+      color: var(--text-strong); border-bottom: 2px solid var(--border-strong);
+      font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .layer-table td {
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .layer-table tr:last-child td { border-bottom: none; }
+    .layer-table tbody tr { background: var(--card); }
+    .layer-table tbody tr:hover { background: var(--bg-hover); }
+
+    /* Badges */
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 3px 10px; border-radius: 9999px; white-space: nowrap;
+    }
+    .badge--cmd { background: var(--accent-subtle); color: var(--accent); }
+    .badge--file { background: var(--info-subtle); color: var(--info); }
+    .badge--tip { background: var(--ok-subtle); color: var(--ok); }
+    .badge--warn { background: var(--warn-subtle); color: var(--warn); }
+
+    /* Numbered steps */
+    .steps { counter-reset: step; list-style: none; padding-left: 0; }
+    .steps li {
+      counter-increment: step; position: relative;
+      padding-left: 40px; margin-bottom: 16px;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 0; top: 2px;
+      width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--accent-subtle); color: var(--accent);
+      font-size: 12px; font-weight: 700; border-radius: 6px;
+    }
+
+    /* Callout */
+    .callout {
+      background: var(--card); border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-md); padding: 14px 18px;
+      margin: 16px 0; font-size: 14px;
+    }
+    .callout--warn { border-left-color: var(--warn); }
+    .callout--ok { border-left-color: var(--ok); }
+    .callout--info { border-left-color: var(--info); }
+    .callout strong { color: var(--text-strong); }
+
+    /* Timestamp */
+    .updated {
+      margin-top: 48px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
+
+    @media (max-width: 700px) {
+      .pipeline { grid-template-columns: 1fr; }
+      .stage::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Contrib<span>uting</span></h1>
+  <p class="subtitle">
+    How to plan, design, develop, test, and deploy features in ClaudeCockpit.
+    <br>See also: <a href="/roadmap.html">Roadmap</a> &middot; <a href="/changelog.html">Changelog</a> &middot; <a href="/testing.html">Testing Pipeline</a>
+  </p>
+
+  <!-- ============================================================ -->
+  <h2>How We Work</h2>
+
+  <p>ClaudeCockpit is a personal tool built by <strong>one developer (Bryan) + Claude Code</strong>. There's no team, no sprint board, no PR review queue. The contributor model is conversational: you describe what you want, Claude Code implements it, you verify and ship.</p>
+
+  <div class="principles">
+    <div class="principle">
+      <div class="principle__num">1</div>
+      <div class="principle__text"><strong>Design for Claude Code, not OpenClaw.</strong> Borrow infrastructure patterns (Lit, WS protocol, CSS tokens) but build the information architecture around Claude Code's concepts: projects, subagents, plan mode, tasks, permissions, memory.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">2</div>
+      <div class="principle__text"><strong>Personal tool, not a product.</strong> No themes, i18n, onboarding, multi-user, or feature flags. Lean and opinionated for a single power user on macOS.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">3</div>
+      <div class="principle__text"><strong>Read real data first, control later.</strong> Understand the data shape before building controls on top of it. Don't over-engineer before knowing what you're working with.</div>
+    </div>
+  </div>
+
+  <h3>The Contributor Toolkit</h3>
+  <table class="layer-table">
+    <thead><tr><th>Tool</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>CLAUDE.md</code></td><td>AI-facing project guide &mdash; Claude Code reads this at session start for full context</td></tr>
+      <tr><td><code>roadmap.html</code></td><td>What to build &mdash; phases, checklists, backlog, design decisions</td></tr>
+      <tr><td><code>changelog.html</code></td><td>What was built &mdash; versioned release history</td></tr>
+      <tr><td><code>testing.html</code></td><td>How code is verified &mdash; test layers, integration architecture, CI pipeline</td></tr>
+      <tr><td><code>contributing.html</code></td><td>How to contribute &mdash; this file, the full lifecycle guide</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============================================================ -->
+  <h2>The Contribution Lifecycle</h2>
+
+  <div class="pipeline">
+    <div class="stage">
+      <div class="stage__num">1</div>
+      <div class="stage__title">Plan</div>
+      <div class="stage__desc">Decide what to build. Check roadmap, scope it.</div>
+    </div>
+    <div class="stage">
+      <div class="stage__num">2</div>
+      <div class="stage__title">Design</div>
+      <div class="stage__desc">Decide where it lives. Pick the right layers.</div>
+    </div>
+    <div class="stage">
+      <div class="stage__num">3</div>
+      <div class="stage__title">Develop</div>
+      <div class="stage__desc">Build bottom-up: service &rarr; server &rarr; UI.</div>
+    </div>
+    <div class="stage">
+      <div class="stage__num">4</div>
+      <div class="stage__title">Test</div>
+      <div class="stage__desc">Unit + integration + visual. <code>npm run ci</code>.</div>
+    </div>
+    <div class="stage">
+      <div class="stage__num">5</div>
+      <div class="stage__title">Deploy</div>
+      <div class="stage__desc">Commit, push, update docs.</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- PLAN -->
+  <!-- ============================================================ -->
+  <h2>1. Plan</h2>
+  <p>Before writing code, know what you're building and why.</p>
+
+  <h3>Where to look</h3>
+  <ul>
+    <li><strong><a href="/roadmap.html">roadmap.html</a></strong> &mdash; open the Phases section. Items with <code>check--todo</code> are uncompleted work. The Feature Backlog has lower-priority ideas.</li>
+    <li><strong>Design Decisions Log</strong> (bottom of roadmap) &mdash; past architectural decisions with rationale. Check here before making a decision that contradicts an existing one.</li>
+    <li><strong><code>git log --oneline -20</code></strong> &mdash; recent work gives context on what's in-flight.</li>
+  </ul>
+
+  <h3>Scoping a feature</h3>
+  <div class="callout">
+    <strong>Ask yourself:</strong> Does this touch the gateway, the UI, or both? If both, which layer owns the complexity? A feature that's "mostly a new service with a thin UI" is different from "mostly a new UI view that calls an existing endpoint."
+  </div>
+
+  <table class="layer-table">
+    <thead><tr><th>Feature Type</th><th>Typical Scope</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td>New data view</td><td>Gateway service + HTTP/WS endpoint + UI component</td><td>Usage analytics (Phase 3)</td></tr>
+      <tr><td>UI enhancement</td><td>UI component only, calls existing endpoints</td><td>Collapsible thinking blocks</td></tr>
+      <tr><td>Bug fix</td><td>Usually one layer, plus a test</td><td>Model-during-resume fix</td></tr>
+      <tr><td>New interaction</td><td>Full stack: gateway event + control protocol + UI handler</td><td>Tool approval banner</td></tr>
+      <tr><td>Infrastructure</td><td>Build tooling, CI, test framework</td><td>Integration test suite, GitHub Actions</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============================================================ -->
+  <!-- DESIGN -->
+  <!-- ============================================================ -->
+  <h2>2. Design</h2>
+  <p>Decide where code lives and how data flows.</p>
+
+  <h3>Architecture</h3>
+  <div class="arch-box">┌─────────────────────────┐  /api/* (HTTP)   ┌───────────────────┐
+│  Lit + Vite (SPA)       │ ───────────────&gt; │  Gateway Server   │
+│  localhost:5173          │                  │  Node.js :18800   │
+│                         │  /ws (WebSocket) │                   │
+│  Chat = Session Cockpit │ &lt;═══════════════&gt;│  req/res/event    │
+│  Three-panel layout     │  streaming chunks│  frame protocol   │
+└─────────────────────────┘                  └─────────┬─────────┘
+                                                       │ spawns / reads
+                                              ┌────────┴────────┐
+                                              v                  v
+                                    ┌──────────────┐  ┌──────────────┐
+                                    │ claude -p    │  │ ~/.claude/   │
+                                    │ --stream-json│  │   projects/  │
+                                    │ --verbose    │  │     *.jsonl  │
+                                    └──────────────┘  └──────────────┘</div>
+
+  <h3>Where does my code go?</h3>
+  <table class="layer-table">
+    <thead><tr><th>If you're building...</th><th>Location</th><th>Pattern</th></tr></thead>
+    <tbody>
+      <tr><td>Data parsing, aggregation, calculations</td><td><code>gateway/services/</code></td><td>Pure exported functions, private config tables</td></tr>
+      <tr><td>A new API endpoint</td><td><code>gateway/server.ts</code></td><td>Branch in <code>handleHttp()</code> or entry in <code>wsHandlers</code></td></tr>
+      <tr><td>A new UI view or panel</td><td><code>ui/views/</code></td><td>Lit component with <code>@customElement</code>, light DOM</td></tr>
+      <tr><td>Shared UI logic</td><td><code>ui/utils/</code></td><td>Pure formatting/helper functions</td></tr>
+      <tr><td>New CSS for a component</td><td><code>ui/styles/</code></td><td>Global stylesheet, BEM-prefixed selectors</td></tr>
+      <tr><td>Frame protocol changes</td><td><code>gateway/protocol/frames.ts</code></td><td>Typed frame constructors + serialization</td></tr>
+    </tbody>
+  </table>
+
+  <h3>The type boundary</h3>
+  <p>Types are <strong>intentionally duplicated</strong> across two files. This is a deliberate architectural boundary.</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card__name">gateway/types.ts</div>
+      <div class="card__desc">
+        Models Claude Code's on-disk format and API response shapes.
+        <br><strong>Add here:</strong> new JSONL fields, raw content block types, API response types.
+        <br><strong>Examples:</strong> <code>RawSessionLine</code>, <code>RawContentBlock</code>, <code>RawUsage</code>, <code>SessionSummary</code>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__name">ui/types.ts</div>
+      <div class="card__desc">
+        Simplified shapes for rendering, plus UI-only state.
+        <br><strong>Add here:</strong> component prop types, rendering state, client-side event types.
+        <br><strong>Examples:</strong> <code>ChatMessage</code> (adds <code>streaming</code>), <code>ToolApprovalEvent</code>
+      </div>
+    </div>
+  </div>
+
+  <h3>Data flow: end-to-end</h3>
+  <div class="arch-box">  Gateway Service          Server (WS)             UI Client              UI Component
+  ──────────────          ───────────             ─────────              ────────────
+  Pure function     &rarr;    wsHandler calls it   &rarr;  gateway.request()   &rarr;  @property data
+  in services/            sends okResponse()       returns Promise         triggers render()
+                          or eventFrame()          or on() callback</div>
+
+  <div class="callout callout--info">
+    <strong>HTTP vs WebSocket.</strong> Use HTTP (<code>/api/*</code>) for one-shot reads the UI needs at load time (overview stats, session list). Use WebSocket for anything that streams, pushes events, or needs low-latency request-response (chat, tool approval, live updates).
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DEVELOP -->
+  <!-- ============================================================ -->
+  <h2>3. Develop</h2>
+  <p>Build bottom-up: service logic first (pure, testable), then server wiring, then UI.</p>
+
+  <h3>Quick Reference</h3>
+  <table class="layer-table">
+    <thead><tr><th>Task</th><th>Command</th></tr></thead>
+    <tbody>
+      <tr><td>Start dev environment</td><td><code>npm run dev</code> &mdash; Vite :5173 + gateway :18800</td></tr>
+      <tr><td>Frontend only</td><td><code>npm run dev:ui</code></td></tr>
+      <tr><td>Gateway only</td><td><code>npm run dev:gateway</code></td></tr>
+      <tr><td>Run all tests</td><td><code>npm test</code></td></tr>
+      <tr><td>Run one test file</td><td><code>npx vitest run tests/gateway/pricing.test.ts</code></td></tr>
+      <tr><td>Watch mode</td><td><code>npm run test:watch</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Gateway Service</h3>
+  <p><span class="badge badge--file">gateway/services/</span> Pure exported functions. No classes, no singletons.</p>
+  <pre>// gateway/services/my-feature.ts
+
+// 1. Types (if needed beyond gateway/types.ts)
+export interface MyConfig { /* ... */ }
+
+// 2. Private config / lookup tables
+const CONFIG_TABLE: MyConfig[] = [ /* ... */ ];
+
+// 3. Exported pure functions
+export function computeSomething(input: string): number {
+  // ...
+}</pre>
+
+  <h3>HTTP Endpoint</h3>
+  <p><span class="badge badge--file">gateway/server.ts</span> Add a branch in <code>handleHttp()</code>.</p>
+  <pre>// In handleHttp():
+if (path === "/api/my-feature") {
+  const projectId = url.searchParams.get("project") ?? undefined;
+  const result = await myServiceFunction(projectId);
+  json(res, result);
+}</pre>
+
+  <h3>WebSocket Method</h3>
+  <p><span class="badge badge--file">gateway/server.ts</span> Write a handler function, add it to the <code>wsHandlers</code> dispatch table.</p>
+  <pre>// 1. Handler function
+async function handleMyFeature({ ws, id, p }: WsContext) {
+  const name = requireString(p, "name");
+  if (!name) {
+    send(ws, errResponse(id, "INVALID_PARAMS", "name is required"));
+    return;
+  }
+  const result = await myServiceFunction(name);
+  send(ws, okResponse(id, result));
+}
+
+// 2. Register in the dispatch table
+const wsHandlers = {
+  // ... existing handlers ...
+  "myFeature.do": handleMyFeature,
+};</pre>
+
+  <h4>Param Helpers</h4>
+  <table class="layer-table">
+    <thead><tr><th>Helper</th><th>Returns</th><th>Use When</th></tr></thead>
+    <tbody>
+      <tr><td><code>getString(p, key)</code></td><td><code>string | undefined</code></td><td>Optional string param</td></tr>
+      <tr><td><code>getNumber(p, key)</code></td><td><code>number | undefined</code></td><td>Optional number param</td></tr>
+      <tr><td><code>requireString(p, key)</code></td><td><code>string | null</code></td><td>Required param &mdash; null means missing/empty</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Pushing Events (server &rarr; client)</h4>
+  <pre>import { eventFrame } from "../protocol/frames.ts";
+
+// Push to one client
+send(ws, eventFrame("myFeature.update", { progress: 42 }));
+
+// Push to all connected clients
+for (const client of wss.clients) {
+  if (client.readyState === WebSocket.OPEN) {
+    send(client, eventFrame("myFeature.update", data));
+  }
+}</pre>
+
+  <h3>UI Component</h3>
+  <p><span class="badge badge--file">ui/views/</span> Lit web components in light DOM. All styling via global CSS.</p>
+  <pre>// ui/views/my-feature.ts
+import { LitElement, html, nothing } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+
+@customElement("cockpit-my-feature")
+export class CockpitMyFeature extends LitElement {
+  protected override createRenderRoot() { return this; }
+
+  @property({ type: Object }) data: MyData | null = null;
+  @state() private _loading = false;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    // Subscribe to events, start timers
+  }
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    // Clean up subscriptions, timers
+  }
+
+  override render() {
+    if (!this.data) return html`&lt;div class="skeleton"&gt;&lt;/div&gt;`;
+    return html`
+      &lt;section class="my-feature"&gt;
+        &lt;h2&gt;${this.data.title}&lt;/h2&gt;
+        ${this._loading ? html`&lt;span&gt;Loading...&lt;/span&gt;` : nothing}
+      &lt;/section&gt;
+    `;
+  }
+}</pre>
+
+  <div class="principles">
+    <div class="principle">
+      <div class="principle__num">1</div>
+      <div class="principle__text"><strong>Light DOM always.</strong> <code>createRenderRoot() { return this; }</code> &mdash; global CSS applies. No Shadow DOM.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">2</div>
+      <div class="principle__text"><strong><code>@property</code> for inputs, <code>@state</code> for internal.</strong> Both trigger re-renders. Properties are set by parent; state is private.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">3</div>
+      <div class="principle__text"><strong>Use <code>nothing</code> not empty strings.</strong> <code>${condition ? html`...` : nothing}</code> removes content entirely.</div>
+    </div>
+    <div class="principle">
+      <div class="principle__num">4</div>
+      <div class="principle__text"><strong>Clean up in <code>disconnectedCallback</code>.</strong> Everything started in <code>connectedCallback</code> must be torn down.</div>
+    </div>
+  </div>
+
+  <h3>Wiring: UI &rarr; Gateway</h3>
+  <pre>// Request-response (one-shot)
+const result = await this.gateway.request("myFeature.do", {
+  name: "test",
+  project: this.projectId,
+});
+
+// Event subscription (streaming/push)
+this._unsub = this.gateway.on("myFeature.update", (data) => {
+  this.latestUpdate = data as MyUpdate;
+});
+
+// Clean up
+override disconnectedCallback() {
+  super.disconnectedCallback();
+  this._unsub?.();
+}</pre>
+
+  <div class="callout callout--warn">
+    <strong>Timeouts.</strong> <code>gateway.request()</code> defaults to 30s. For long operations, pass a custom timeout: <code>gateway.request("slow.method", params, 60_000)</code>. Constants live in <code>ui/constants.ts</code>.
+  </div>
+
+  <h3>Adding Styles</h3>
+  <p><span class="badge badge--file">ui/styles/</span> Global CSS (light DOM). Use existing CSS tokens.</p>
+  <ul>
+    <li>Use <code>var(--accent)</code> for accent color (<code>#da7756</code> terracotta)</li>
+    <li>Use <code>var(--font-body)</code> for text, <code>var(--mono)</code> for code</li>
+    <li>Use BEM-style prefixes per component (<code>.ov-card</code>, <code>.chat-sidebar</code>) to avoid collisions</li>
+  </ul>
+
+  <!-- ============================================================ -->
+  <!-- TEST -->
+  <!-- ============================================================ -->
+  <h2>4. Test</h2>
+  <p>Every feature needs tests. The layer determines the pattern.</p>
+
+  <table class="layer-table">
+    <thead><tr><th>Layer</th><th>Tool</th><th>What It Catches</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Unit tests</strong> (gateway)</td>
+        <td>vitest</td>
+        <td>Logic bugs, data parsing, calculations</td>
+      </tr>
+      <tr>
+        <td><strong>Unit tests</strong> (UI)</td>
+        <td>vitest + jsdom</td>
+        <td>Component rendering, DOM structure, event handling</td>
+      </tr>
+      <tr>
+        <td><strong>Integration tests</strong></td>
+        <td>vitest + spawn mock</td>
+        <td>Cross-boundary bugs (server &rarr; CLI arg wiring, event pipeline)</td>
+      </tr>
+      <tr>
+        <td><strong>Visual verification</strong></td>
+        <td>Agent Browser / Playwright MCP</td>
+        <td>Rendering issues, layout breakage, UX regressions</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Gateway Service Test</h3>
+  <p><span class="badge badge--file">tests/gateway/</span> Import the function, call it, assert. No mocks needed.</p>
+  <pre>import { describe, it, expect } from "vitest";
+import { computeSomething } from "../../gateway/services/my-feature.ts";
+
+describe("computeSomething", () => {
+  it("returns expected value for normal input", () => {
+    expect(computeSomething("hello")).toBe(42);
+  });
+
+  it("handles edge case", () => {
+    expect(computeSomething("")).toBe(0);
+  });
+});</pre>
+
+  <h3>Server / WS Handler Test</h3>
+  <p><span class="badge badge--file">tests/gateway/server.test.ts</span> Mock services, test dispatch and response shape.</p>
+  <pre>import { handleWsRequest } from "../../gateway/server.ts";
+import { requestFrame } from "../../gateway/protocol/frames.ts";
+
+it("myFeature.do returns result", async () => {
+  const sent: string[] = [];
+  const ws = { send: (d: string) => sent.push(d) } as any;
+
+  await handleWsRequest(ws, requestFrame("r1", "myFeature.do", { name: "test" }));
+
+  const res = JSON.parse(sent[0]);
+  expect(res.type).toBe("res");
+  expect(res.result.something).toBeDefined();
+});</pre>
+
+  <h3>UI Component Test</h3>
+  <p><span class="badge badge--file">tests/ui/</span> Create element, set properties, await render, query DOM.</p>
+  <pre>import { describe, it, expect, beforeEach } from "vitest";
+import "../../ui/views/my-feature.ts";
+import type { CockpitMyFeature } from "../../ui/views/my-feature.ts";
+import { renderEl } from "../helpers.ts";
+
+describe("cockpit-my-feature", () => {
+  beforeEach(() => { document.body.innerHTML = ""; });
+
+  it("renders data when provided", async () => {
+    const el = document.createElement("cockpit-my-feature") as CockpitMyFeature;
+    el.data = { title: "Test", value: 42 };
+    await renderEl(el);
+    expect(el.querySelector("h2")?.textContent).toBe("Test");
+  });
+
+  it("renders skeleton when data is null", async () => {
+    const el = document.createElement("cockpit-my-feature") as CockpitMyFeature;
+    el.data = null;
+    await renderEl(el);
+    expect(el.querySelector(".skeleton")).toBeTruthy();
+  });
+});</pre>
+
+  <h4>Test Helpers (<code>tests/helpers.ts</code>)</h4>
+  <table class="layer-table">
+    <thead><tr><th>Helper</th><th>What It Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>renderEl(el)</code></td><td>Appends to DOM, awaits Lit <code>updateComplete</code>, returns element</td></tr>
+      <tr><td><code>setProps(el, props)</code></td><td>Assigns properties and awaits re-render</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Integration Tests</h3>
+  <p><span class="badge badge--file">tests/gateway/integration.test.ts</span> Let the real server &rarr; CLI chain run, mock only <code>child_process.spawn</code> at the OS boundary.</p>
+
+  <div class="callout">
+    <strong>When do you need an integration test?</strong> When the feature wires <code>server.ts</code> to <code>claude-cli.ts</code> &mdash; e.g., passing params through to spawn args, processing stdout events into WS frames, or the control protocol round-trip. If your feature is purely within one layer, unit tests are sufficient.
+  </div>
+
+  <p>See <a href="/testing.html">testing.html</a> for the full integration test architecture, spawn mock details, and the test file map.</p>
+
+  <!-- ============================================================ -->
+  <!-- DEPLOY -->
+  <!-- ============================================================ -->
+  <h2>5. Deploy</h2>
+  <p>ClaudeCockpit runs locally. "Deploying" means: verify, commit, push, update docs.</p>
+
+  <h3>Pre-Push Checklist</h3>
+
+  <ol class="steps">
+    <li><strong><code>npm run ci</code></strong> &mdash; typecheck + tests + build. If this passes, GitHub Actions CI will too.</li>
+    <li><strong>Visual check</strong> &mdash; <code>npm run dev</code>, open <code>localhost:5173</code>, verify the feature works with real session data.</li>
+    <li><strong>Test count</strong> &mdash; if you added tests, update the count in <code>testing.html</code>, <code>roadmap.html</code>, and <code>CLAUDE.md</code>.</li>
+    <li><strong>Changelog</strong> &mdash; add an entry in <code>changelog.html</code> under the current version (Added / Fixed / Changed / Removed sections).</li>
+    <li><strong>Roadmap</strong> &mdash; if a checklist item was completed, toggle <code>check--todo</code> &rarr; <code>check--done</code> with checkmark.</li>
+    <li><strong>Commit</strong> &mdash; concise message summarizing what and why. Match the style in <code>git log --oneline</code>.</li>
+  </ol>
+
+  <h3>CI Pipeline</h3>
+  <p>GitHub Actions runs on every push to <code>main</code> and on pull requests. Three stages, same as <code>npm run ci</code>:</p>
+  <pre>1. tsc --noEmit          # Type errors block the build
+2. vitest run             # Test failures block the build
+3. vite build             # Import errors and missing modules caught here</pre>
+
+  <h3>Updating Living Docs</h3>
+  <table class="layer-table">
+    <thead><tr><th>Document</th><th>When to Update</th><th>What to Change</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="/changelog.html"><code>changelog.html</code></a></td>
+        <td>Every commit that changes behavior</td>
+        <td>Add entry under current version. Bump version for milestones.</td>
+      </tr>
+      <tr>
+        <td><a href="/roadmap.html"><code>roadmap.html</code></a></td>
+        <td>Checklist item completed or new one added</td>
+        <td>Toggle check status. Update test count in footer.</td>
+      </tr>
+      <tr>
+        <td><a href="/testing.html"><code>testing.html</code></a></td>
+        <td>New test file or significant count change</td>
+        <td>Update file map and count in footer.</td>
+      </tr>
+      <tr>
+        <td><code>CLAUDE.md</code></td>
+        <td>Architecture changes (new services, endpoints, components)</td>
+        <td>Update the relevant section. This is the AI's primary reference.</td>
+      </tr>
+      <tr>
+        <td><code>contributing.html</code></td>
+        <td>Development patterns change</td>
+        <td>Update the relevant pattern. Keep examples matching real code.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Local "Production"</h3>
+  <pre>npm run dev                    # Development: Vite :5173 + gateway :18800
+npm run build && npm run preview   # Production-like local serving</pre>
+  <p>No cloud deployment. The SPA is non-functional without the local gateway (which reads <code>~/.claude/projects/</code> and spawns <code>claude -p</code>).</p>
+
+  <!-- ============================================================ -->
+  <h2>Common Gotchas</h2>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card__name">Lit decorators need tsconfig flags</div>
+      <div class="card__desc">
+        <code>useDefineForClassFields: false</code> and <code>experimentalDecorators: true</code> are required. Without them, <code>@property</code> silently breaks and components won't re-render.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__name">JSONL concatenation</div>
+      <div class="card__desc">
+        Claude Code sometimes writes two JSON objects on one line (missing trailing newline). The parser handles this via <code>splitConcatenatedJson()</code>, but be aware when debugging JSONL issues.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__name">Streaming dedup by message ID</div>
+      <div class="card__desc">
+        Multiple JSONL lines can share the same <code>message.id</code> (streaming chunks). <code>convertToMessages()</code> deduplicates &mdash; the last chunk wins. If messages look duplicated, check the ID.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__name">stdin prompts, not CLI args</div>
+      <div class="card__desc">
+        Prompts are sent via stdin as JSON, not as CLI arguments. This avoids <code>ARG_MAX</code> limits on long prompts.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__name">Resume skips --model</div>
+      <div class="card__desc">
+        When resuming (<code>claude -r &lt;id&gt;</code>), <code>buildArgs</code> omits <code>--model</code>. The resumed session keeps its original model. This was a real bug caught by integration tests.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__name">Light DOM = global CSS namespace</div>
+      <div class="card__desc">
+        All components share one CSS namespace. Use BEM-style prefixes per component (<code>.ov-card</code>, <code>.chat-sidebar</code>) to avoid selector collisions.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>Project File Map</h2>
+  <pre>ClaudeCockpit/
+  gateway/
+    server.ts              # HTTP + WS server, handler dispatch
+    types.ts               # JSONL + API response types
+    constants.ts           # Gateway-level constants
+    protocol/
+      frames.ts            # Frame serialization (req/res/event)
+    services/
+      session-store.ts     # JSONL parser, message conversion, stats
+      claude-cli.ts        # Spawns claude -p, NDJSON stream parsing
+      pricing.ts           # Bedrock cost estimation per model
+  ui/
+    app.ts                 # App shell, routing, project selector
+    gateway.ts             # WS client (request/response, events, reconnect)
+    types.ts               # UI rendering types
+    constants.ts           # UI constants (models, timeouts, page sizes)
+    views/
+      chat.ts              # Session cockpit (3-panel layout)
+      overview.ts          # Stat cards + recent sessions
+    utils/
+      format.ts            # Shared formatters (tokens, time, cost)
+    styles/                # Global CSS (light DOM)
+  tests/
+    helpers.ts             # renderEl, setProps test utilities
+    gateway/               # Gateway unit + integration tests
+    ui/                    # UI component tests
+  contributing.html        # This file — contribution lifecycle guide
+  roadmap.html             # Phases, backlog, design decisions
+  changelog.html           # Versioned release history
+  testing.html             # Test pipeline architecture
+  CLAUDE.md                # AI-facing project guide</pre>
+
+  <p class="updated">Last updated: 2026-04-02 — Initial contributing guide. Covers the full plan &rarr; design &rarr; develop &rarr; test &rarr; deploy lifecycle.</p>
+
+</div>
+</body>
+</html>
