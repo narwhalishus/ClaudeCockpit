@@ -136,12 +136,46 @@
 
   <!-- ============================================================ -->
 
-  <!-- v0.6.0 -->
+  <!-- v0.7.0 -->
   <div class="release release--latest">
+    <div class="release__head">
+      <span class="release__version">v0.7.0</span>
+      <span class="release__name">Live Stats &amp; JSONL Recovery</span>
+      <span class="release__badge badge--latest">Latest</span>
+    </div>
+    <div class="release__date">2026-04-02</div>
+
+    <div class="release__section">
+      <div class="release__section-title">Fixed</div>
+      <ul class="release__list">
+        <li>JSONL parser now recovers concatenated JSON objects — Claude Code sometimes omits trailing newlines, gluing two entries onto one line. New <code>splitConcatenatedJson()</code> uses brace-depth tracking to split them</li>
+        <li><code>renameSession</code> appends trailing newline to prevent creating the same concatenation issue</li>
+        <li>Changelog inline <code>&lt;code&gt;</code> elements no longer cause extra vertical spacing (removed border, tightened padding)</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Added</div>
+      <ul class="release__list">
+        <li>Est. Cost card updates live — app shell subscribes to <code>chat.close</code> events, triggering a stats re-fetch when sessions complete</li>
+        <li>7 new tests for <code>splitConcatenatedJson</code> (nested objects, escaped quotes, string braces, malformed input)</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Changed</div>
+      <ul class="release__list">
+        <li>Test count: 249 &rarr; 256</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- v0.6.0 -->
+  <div class="release release--stable">
     <div class="release__head">
       <span class="release__version">v0.6.0</span>
       <span class="release__name">Codebase Refinement</span>
-      <span class="release__badge badge--latest">Latest</span>
+      <span class="release__badge badge--stable">Phase 2.5</span>
     </div>
     <div class="release__date">2026-04-01</div>
 
@@ -365,7 +399,7 @@
     </div>
   </div>
 
-  <p class="updated">Last updated: 2026-04-01</p>
+  <p class="updated">Last updated: 2026-04-02</p>
 
 </div>
 </body>
