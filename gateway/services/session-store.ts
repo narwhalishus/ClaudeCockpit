@@ -27,6 +27,43 @@ export function decodeProjectPath(encoded: string): string {
   return encoded.replace(/-/g, "/");
 }
 
+/**
+ * Split a line containing multiple concatenated JSON objects.
+ *
+ * Claude Code sometimes writes JSONL entries without a trailing newline,
+ * causing two valid objects to end up on one line: `{...}{...}`.
+ * This uses brace-depth tracking (respecting strings) to find boundaries.
+ */
+export function splitConcatenatedJson(line: string): unknown[] {
+  const results: unknown[] = [];
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let start = 0;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\" && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        try {
+          results.push(JSON.parse(line.slice(start, i + 1)));
+        } catch {
+          // Segment still malformed — skip it
+        }
+        start = i + 1;
+      }
+    }
+  }
+
+  return results;
+}
+
 /** Parse a single JSONL file into an array of raw session lines */
 async function parseJsonlFile(filePath: string): Promise<RawSessionLine[]> {
   const content = await readFile(filePath, "utf-8");
@@ -38,7 +75,13 @@ async function parseJsonlFile(filePath: string): Promise<RawSessionLine[]> {
     try {
       lines.push(JSON.parse(trimmed));
     } catch {
-      console.warn(`Malformed JSONL at ${filePath}:${i + 1} — skipping line`);
+      // Try to recover concatenated JSON objects (CC sometimes omits newlines)
+      const recovered = splitConcatenatedJson(trimmed);
+      if (recovered.length > 0) {
+        lines.push(...(recovered as RawSessionLine[]));
+      } else {
+        console.warn(`Malformed JSONL at ${filePath}:${i + 1} — skipping line`);
+      }
     }
   }
   return lines;
@@ -711,6 +754,6 @@ export async function renameSession(
     customTitle: title,
     sessionId,
   });
-  await appendFile(found.filePath, "\n" + line);
+  await appendFile(found.filePath, "\n" + line + "\n");
   return true;
 }

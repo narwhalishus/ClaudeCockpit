@@ -43,6 +43,7 @@ export class CockpitApp extends LitElement {
   @state() private projects: Project[] = [];
 
   private gateway = new GatewayBrowserClient();
+  private _unsubChatClose?: () => void;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -60,6 +61,9 @@ export class CockpitApp extends LitElement {
     };
     this.gateway.connect();
 
+    // Re-fetch stats when a chat session completes (updates cost card, etc.)
+    this._unsubChatClose = this.gateway.on("chat.close", () => this._refetchData());
+
     // Also fetch via HTTP as fallback (in case WS takes a moment)
     this._fetchViaHttp();
   }
@@ -67,6 +71,7 @@ export class CockpitApp extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("hashchange", this._onHashChange);
+    this._unsubChatClose?.();
     this.gateway.disconnect();
   }
 

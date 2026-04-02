@@ -12,6 +12,7 @@ import {
   consolidateMessages,
   computeOverviewStats,
   buildTranscript,
+  splitConcatenatedJson,
 } from "../../gateway/services/session-store.ts";
 import type { RawSessionLine, SessionSummary } from "../../gateway/types.ts";
 import type { ChatMessage } from "../../gateway/types.ts";
@@ -32,6 +33,61 @@ describe("decodeProjectPath", () => {
 
   it("handles an empty string", () => {
     expect(decodeProjectPath("")).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// splitConcatenatedJson
+// ---------------------------------------------------------------------------
+describe("splitConcatenatedJson", () => {
+  it("splits two concatenated JSON objects", () => {
+    const line = '{"type":"custom-title","customTitle":"my session"}{"type":"user","message":"hello"}';
+    const result = splitConcatenatedJson(line);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ type: "custom-title", customTitle: "my session" });
+    expect(result[1]).toEqual({ type: "user", message: "hello" });
+  });
+
+  it("handles a single valid JSON object", () => {
+    const line = '{"type":"user","message":"hello"}';
+    const result = splitConcatenatedJson(line);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ type: "user", message: "hello" });
+  });
+
+  it("handles braces inside string values", () => {
+    const line = '{"text":"a {nested} value"}{"type":"next"}';
+    const result = splitConcatenatedJson(line);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ text: "a {nested} value" });
+    expect(result[1]).toEqual({ type: "next" });
+  });
+
+  it("handles escaped quotes inside strings", () => {
+    const line = '{"text":"she said \\"hello\\""}{"type":"b"}';
+    const result = splitConcatenatedJson(line);
+
+    expect(result).toHaveLength(2);
+    expect((result[0] as Record<string, string>).text).toBe('she said "hello"');
+  });
+
+  it("handles nested objects", () => {
+    const line = '{"message":{"role":"user","content":"hi"}}{"type":"next"}';
+    const result = splitConcatenatedJson(line);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ message: { role: "user", content: "hi" } });
+  });
+
+  it("returns empty array for completely malformed input", () => {
+    expect(splitConcatenatedJson("not json at all")).toEqual([]);
+  });
+
+  it("returns empty array for empty string", () => {
+    expect(splitConcatenatedJson("")).toEqual([]);
   });
 });
 
