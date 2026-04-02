@@ -25,6 +25,7 @@ import {
 } from "./protocol/frames.ts";
 
 const PORT = 18800;
+const STARTED_AT = new Date().toISOString();
 
 // ─── HTTP handler (kept for backward compat + health checks) ───────────────
 
@@ -59,7 +60,8 @@ async function handleHttp(req: IncomingMessage, res: ServerResponse) {
   try {
     if (path === "/api/overview") {
       const projectId = url.searchParams.get("project") ?? undefined;
-      json(res, await getOverviewStats(projectId));
+      const stats = await getOverviewStats(projectId);
+      json(res, { ...stats, gatewayStartedAt: STARTED_AT });
     } else if (path === "/api/sessions") {
       const projectId = url.searchParams.get("project") ?? undefined;
       const sessions = await listSessions(projectId);
@@ -71,6 +73,7 @@ async function handleHttp(req: IncomingMessage, res: ServerResponse) {
       json(res, {
         status: "ok",
         timestamp: new Date().toISOString(),
+        startedAt: STARTED_AT,
         wsClients: wss?.clients.size ?? 0,
       });
     } else {
@@ -109,7 +112,7 @@ export async function handleWsRequest(ws: WebSocket, req: RequestFrame) {
       case "overview.get": {
         const projectId = p.project as string | undefined;
         const stats = await getOverviewStats(projectId);
-        send(ws, okResponse(id, stats));
+        send(ws, okResponse(id, { ...stats, gatewayStartedAt: STARTED_AT }));
         break;
       }
 

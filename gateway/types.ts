@@ -100,6 +100,8 @@ export interface OverviewStats {
   totalCacheReadTokens: number;
   totalCacheCreationTokens: number;
   sessionsToday: number;
+  estimatedTotalCostUsd: number;
+  gatewayStartedAt: string;
   recentSessions: SessionSummary[];
 }
 

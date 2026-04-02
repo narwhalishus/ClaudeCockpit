@@ -96,7 +96,8 @@ describe("handleWsRequest", () => {
     const frame = ws.lastFrame();
     expect(frame.type).toBe("res");
     expect(frame.id).toBe("test-overview.get");
-    expect(frame.result).toEqual({ totalSessions: 5 });
+    expect(frame.result).toMatchObject({ totalSessions: 5 });
+    expect(frame.result.gatewayStartedAt).toBeDefined();
   });
 
   it("sessions.list → calls listSessions and returns okResponse", async () => {

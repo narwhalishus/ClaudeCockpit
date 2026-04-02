@@ -31,6 +31,27 @@ export function formatRelativeTimeVerbose(iso: string): string {
   return `${days}d ago`;
 }
 
+/** Format gateway uptime from an ISO start time (e.g. "45s", "3m 20s", "2h 15m", "1d 4h") */
+export function formatUptime(startIso: string): string {
+  const ms = Date.now() - new Date(startIso).getTime();
+  if (ms <= 0) return "0s";
+  const secs = Math.floor(ms / 1000);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ${secs % 60}s`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ${mins % 60}m`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
+}
+
+/** Format a USD cost (e.g. "<$0.01", "$1.23", "$0.50") */
+export function formatCost(usd: number): string {
+  if (usd === 0) return "$0.00";
+  if (usd < 0.01) return "<$0.01";
+  return `$${usd.toFixed(2)}`;
+}
+
 /** Format a duration between two ISO timestamps (e.g. "3m 20s", "1h 5m") */
 export function formatDuration(startIso: string, endIso: string): string {
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime();

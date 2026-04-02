@@ -7,6 +7,8 @@ import {
   formatRelativeTime,
   formatRelativeTimeVerbose,
   formatDuration,
+  formatUptime,
+  formatCost,
 } from "../../ui/utils/format.ts";
 
 describe("formatTokens", () => {
@@ -79,5 +81,55 @@ describe("formatDuration", () => {
 
   it("returns dash for negative duration", () => {
     expect(formatDuration("2026-04-01T12:00:00Z", "2026-04-01T11:00:00Z")).toBe("—");
+  });
+});
+
+describe("formatUptime", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("shows seconds for short uptimes", () => {
+    vi.useFakeTimers({ now: new Date("2026-04-01T12:00:45Z") });
+    expect(formatUptime("2026-04-01T12:00:00Z")).toBe("45s");
+  });
+
+  it("shows minutes and seconds", () => {
+    vi.useFakeTimers({ now: new Date("2026-04-01T12:03:20Z") });
+    expect(formatUptime("2026-04-01T12:00:00Z")).toBe("3m 20s");
+  });
+
+  it("shows hours and minutes", () => {
+    vi.useFakeTimers({ now: new Date("2026-04-01T14:30:00Z") });
+    expect(formatUptime("2026-04-01T12:00:00Z")).toBe("2h 30m");
+  });
+
+  it("shows days and hours", () => {
+    vi.useFakeTimers({ now: new Date("2026-04-03T15:00:00Z") });
+    expect(formatUptime("2026-04-01T12:00:00Z")).toBe("2d 3h");
+  });
+
+  it("returns '0s' for future start time", () => {
+    vi.useFakeTimers({ now: new Date("2026-04-01T12:00:00Z") });
+    expect(formatUptime("2026-04-01T13:00:00Z")).toBe("0s");
+  });
+});
+
+describe("formatCost", () => {
+  it("formats zero cost", () => {
+    expect(formatCost(0)).toBe("$0.00");
+  });
+
+  it("formats sub-penny amounts", () => {
+    expect(formatCost(0.005)).toBe("<$0.01");
+    expect(formatCost(0.001)).toBe("<$0.01");
+  });
+
+  it("formats normal amounts", () => {
+    expect(formatCost(1.23)).toBe("$1.23");
+    expect(formatCost(0.50)).toBe("$0.50");
+    expect(formatCost(99.99)).toBe("$99.99");
+  });
+
+  it("formats amounts at the penny boundary", () => {
+    expect(formatCost(0.01)).toBe("$0.01");
   });
 });

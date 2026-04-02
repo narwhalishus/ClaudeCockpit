@@ -17,6 +17,7 @@ import {
   TRANSCRIPT_MAX_CHARS,
   AGENT_PROMPT_PREVIEW_CHARS,
 } from "../constants.ts";
+import { estimateSessionCost } from "./pricing.ts";
 
 const CLAUDE_DIR = join(homedir(), ".claude");
 const PROJECTS_DIR = join(CLAUDE_DIR, "projects");
@@ -262,6 +263,7 @@ export function computeOverviewStats(
   let totalCacheRead = 0;
   let totalCacheCreation = 0;
   let sessionsToday = 0;
+  let estimatedTotalCostUsd = 0;
 
   for (const s of sessions) {
     totalInput += s.totalInputTokens;
@@ -271,6 +273,13 @@ export function computeOverviewStats(
     if (s.lastMessageAt >= todayStart) {
       sessionsToday++;
     }
+    estimatedTotalCostUsd += estimateSessionCost(
+      s.model,
+      s.totalInputTokens,
+      s.totalOutputTokens,
+      s.totalCacheReadTokens,
+      s.totalCacheCreationTokens,
+    );
   }
 
   return {
@@ -281,6 +290,8 @@ export function computeOverviewStats(
     totalCacheReadTokens: totalCacheRead,
     totalCacheCreationTokens: totalCacheCreation,
     sessionsToday,
+    estimatedTotalCostUsd,
+    gatewayStartedAt: "",
     recentSessions: sessions.slice(0, 10),
   };
 }

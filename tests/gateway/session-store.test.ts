@@ -443,6 +443,7 @@ describe("computeOverviewStats", () => {
     expect(result.totalInputTokens).toBe(0);
     expect(result.totalOutputTokens).toBe(0);
     expect(result.sessionsToday).toBe(0);
+    expect(result.estimatedTotalCostUsd).toBe(0);
     expect(result.recentSessions).toEqual([]);
   });
 
@@ -477,6 +478,15 @@ describe("computeOverviewStats", () => {
 
     expect(result.totalCacheReadTokens).toBe(3000);
     expect(result.totalCacheCreationTokens).toBe(400);
+  });
+
+  it("computes estimatedTotalCostUsd > 0 for sessions with tokens", () => {
+    const sessions = [
+      makeSession({ model: "claude-opus-4-6", totalInputTokens: 1_000_000, totalOutputTokens: 100_000 }),
+    ];
+    const result = computeOverviewStats(sessions, 1);
+
+    expect(result.estimatedTotalCostUsd).toBeGreaterThan(0);
   });
 });
 

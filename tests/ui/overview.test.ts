@@ -28,6 +28,8 @@ function makeStats(overrides: Partial<OverviewStats> = {}): OverviewStats {
     totalCacheReadTokens: 1_000_000,
     totalCacheCreationTokens: 50_000,
     sessionsToday: 4,
+    estimatedTotalCostUsd: 12.34,
+    gatewayStartedAt: new Date(Date.now() - 3600_000).toISOString(),
     recentSessions: [
       {
         sessionId: "abc-123",
@@ -70,7 +72,7 @@ describe("cockpit-overview", () => {
     expect(values.length).toBe(0);
   });
 
-  it("renders four stat cards when stats are provided", async () => {
+  it("renders six stat cards when stats are provided", async () => {
     const el = document.createElement(
       "cockpit-overview"
     ) as CockpitOverview;
@@ -78,7 +80,7 @@ describe("cockpit-overview", () => {
     await renderEl(el);
 
     const cards = el.querySelectorAll(".ov-card");
-    expect(cards.length).toBe(4);
+    expect(cards.length).toBe(6);
 
     // Check labels
     const labels = Array.from(el.querySelectorAll(".ov-card__label")).map(
@@ -87,7 +89,9 @@ describe("cockpit-overview", () => {
     expect(labels).toContain("Total Sessions");
     expect(labels).toContain("Projects");
     expect(labels).toContain("Tokens Used");
-    expect(labels).toContain("Cache Read");
+    expect(labels).toContain("Est. Cost");
+    expect(labels).toContain("Uptime");
+    expect(labels).toContain("Avg Tokens/Session");
   });
 
   it("displays correct values from stats", async () => {
@@ -104,7 +108,8 @@ describe("cockpit-overview", () => {
     expect(values).toContain("32"); // totalSessions
     expect(values).toContain("2"); // totalProjects
     expect(values).toContain("30.0K"); // 5000 + 25000 = 30K tokens
-    expect(values).toContain("1.0M"); // 1M cache read tokens
+    expect(values).toContain("$12.34"); // estimatedTotalCostUsd
+    expect(values).toContain("938"); // avg tokens: 30000 / 32 = 937.5, rounded to 938
   });
 
   it("renders recent sessions list", async () => {
@@ -168,6 +173,6 @@ describe("cockpit-overview", () => {
     );
 
     expect(values).toContain("2.0M"); // 500K + 1.5M = 2M tokens
-    expect(values).toContain("50.0M"); // 50M cache read
+    expect(values).toContain("62.5K"); // avg tokens: 2M / 32 = 62500
   });
 });

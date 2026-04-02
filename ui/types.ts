@@ -83,6 +83,8 @@ export interface OverviewStats {
   totalCacheReadTokens: number;
   totalCacheCreationTokens: number;
   sessionsToday: number;
+  estimatedTotalCostUsd: number;
+  gatewayStartedAt: string;
   recentSessions: SessionSummary[];
 }
 
@@ -139,5 +141,5 @@ export interface ToolApprovalEvent {
 }
 
 /** Active tab in the cockpit */
-export type CockpitTab = "overview" | "chat" | "usage" | "settings";
+export type CockpitTab = "overview" | "chat" | "settings";
 
