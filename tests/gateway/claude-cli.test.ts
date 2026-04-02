@@ -240,7 +240,7 @@ describe("ClaudeProcess.handleParsedLine — system type", () => {
 });
 
 describe("ClaudeProcess.handleParsedLine — unknown type", () => {
-  it("emits text chunk with JSON-stringified data for unknown types", () => {
+  it("passes through unknown types with original type and raw data", () => {
     const proc = new ClaudeProcess({ prompt: "test" });
     const handler = vi.fn();
     proc.on("chunk", handler);
@@ -249,8 +249,9 @@ describe("ClaudeProcess.handleParsedLine — unknown type", () => {
     proc.handleParsedLine(data);
 
     expect(handler).toHaveBeenCalledOnce();
-    expect(handler.mock.calls[0][0].type).toBe("text");
-    expect(handler.mock.calls[0][0].content).toBe(JSON.stringify(data));
+    expect(handler.mock.calls[0][0].type).toBe("unknown_type");
+    expect(handler.mock.calls[0][0].content).toBeUndefined();
+    expect(handler.mock.calls[0][0].raw).toBe(data);
   });
 });
 

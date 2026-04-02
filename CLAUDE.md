@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — starts both Vite dev server (:5173) and gateway server (:18800) concurrently
 - `npm run dev:ui` — Vite frontend only
 - `npm run dev:gateway` — gateway server only (uses `tsx watch`)
-- `npm test` — run all tests (`vitest run`, ~213 tests)
+- `npm test` — run all tests (`vitest run`, ~223 tests)
 - `npm run test:watch` — tests in watch mode
 - `npx vitest run tests/gateway/session-store.test.ts` — run a single test file
 - `npm run build` — production build to `dist/`
@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Phase 1 (Static Cockpit)**: Complete — read-only views for overview, sessions, projects
 - **Phase 2 (Gateway + Live Chat)**: Complete — WebSocket streaming, chat-as-session-cockpit, session resume
-- **Phase 2.5 (Chat Refinements)**: In progress — session detail sidebar, model selector (settings + per-session override), conversation summary, overview redesign (6 stat cards with cost/uptime) done; remaining: structured user messages
+- **Phase 2.5 (Chat Refinements)**: Complete — session detail sidebar, model selector, conversation summary, overview redesign, structured user messages + per-tool colored symbols, gateway resilience fix
 - **Phase 3 (Usage Analytics)**: Planned — token breakdown by day/model/project, Bedrock cost tracking
 
 Full roadmap with checklists: `roadmap.html` | Changelog: `changelog.html`

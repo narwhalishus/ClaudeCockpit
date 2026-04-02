@@ -30,7 +30,7 @@ export interface ChatRequest {
 }
 
 export interface ChatChunk {
-  type: "text" | "thinking" | "tool_use" | "tool_result" | "result" | "error" | "system";
+  type: string;
   content?: string;
   raw?: unknown;
 }
@@ -297,10 +297,9 @@ export class ClaudeProcess extends EventEmitter {
       return;
     }
 
-    // Unknown type — emit as raw
+    // Unknown type — pass through with original type so the UI can ignore it
     this.emit("chunk", {
-      type: "text",
-      content: JSON.stringify(data),
+      type,
       raw: data,
     } satisfies ChatChunk);
   }

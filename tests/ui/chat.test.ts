@@ -85,6 +85,119 @@ describe("cockpit-chat markdown rendering", () => {
     expect(msgContent!.textContent).toContain("**bug**");
   });
 
+  // ── Structured user messages (slash command XML) ──
+
+  it("renders <command-name> as a colored pill badge", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "u-cmd",
+          role: "user",
+          content: "<command-name>plan</command-name><command-args>implement auth</command-args>",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const pill = el.querySelector(".chat__user-command-name");
+    expect(pill).not.toBeNull();
+    expect(pill!.textContent).toContain("/plan");
+
+    const args = el.querySelector(".chat__user-command-args");
+    expect(args).not.toBeNull();
+    expect(args!.textContent).toContain("implement auth");
+  });
+
+  it("renders <local-command-stdout> as a monospace code block", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "u-stdout",
+          role: "user",
+          content: "<command-name>mcp</command-name><local-command-stdout>Server: playwright\nStatus: connected</local-command-stdout>",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const stdout = el.querySelector(".chat__user-stdout");
+    expect(stdout).not.toBeNull();
+    expect(stdout!.textContent).toContain("Server: playwright");
+    expect(stdout!.tagName).toBe("PRE");
+  });
+
+  it("renders <local-command-caveat> as muted italic text", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "u-caveat",
+          role: "user",
+          content: "<command-name>help</command-name><local-command-caveat>Some features require configuration</local-command-caveat>",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const caveat = el.querySelector(".chat__user-caveat");
+    expect(caveat).not.toBeNull();
+    expect(caveat!.textContent).toContain("Some features require configuration");
+  });
+
+  it("renders plain user text without XML tags normally", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "u-plain",
+          role: "user",
+          content: "Just a normal message with no tags",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    // No structured elements
+    expect(el.querySelector(".chat__user-command")).toBeNull();
+    expect(el.querySelector(".chat__user-stdout")).toBeNull();
+    expect(el.querySelector(".chat__user-caveat")).toBeNull();
+
+    const msgContent = el.querySelector(".chat__msg--user .chat__msg-content");
+    expect(msgContent!.textContent).toContain("Just a normal message");
+  });
+
+  it("renders mixed content: command + stdout + trailing text", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "u-mixed",
+          role: "user",
+          content: "<command-name>mcp</command-name><local-command-stdout>output here</local-command-stdout>Some trailing text",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    expect(el.querySelector(".chat__user-command-name")).not.toBeNull();
+    expect(el.querySelector(".chat__user-stdout")).not.toBeNull();
+    // Trailing text should still be present
+    const content = el.querySelector(".chat__msg--user .chat__msg-content");
+    expect(content!.textContent).toContain("trailing text");
+  });
+
   it("renders lists as <ul>/<li>", async () => {
     const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
@@ -875,5 +988,141 @@ describe("cockpit-chat session summary", () => {
     await (el as unknown as { updateComplete: Promise<boolean> }).updateComplete;
 
     expect(el.querySelector(".chat__summary")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tool block styling (per-tool colors + symbols)
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat tool block styling", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("renders Bash tool with green symbol", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "a-tools",
+          role: "assistant",
+          content: "Running command.",
+          timestamp: new Date().toISOString(),
+          tools: [{ toolUseId: "t1", name: "Bash" }],
+        },
+      ],
+    });
+
+    const badge = el.querySelector(".chat__tool-type");
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toBe("▶");
+    expect((badge as HTMLElement).style.color).toBe("var(--ok)");
+
+    const name = el.querySelector(".chat__tool-name");
+    expect(name).not.toBeNull();
+    expect(name!.textContent).toBe("Bash");
+  });
+
+  it("renders Read tool with blue symbol", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "a-read",
+          role: "assistant",
+          content: "Reading file.",
+          timestamp: new Date().toISOString(),
+          tools: [{ toolUseId: "t2", name: "Read" }],
+        },
+      ],
+    });
+
+    const badge = el.querySelector(".chat__tool-type");
+    expect(badge!.textContent).toBe("□");
+    expect((badge as HTMLElement).style.color).toBe("var(--info)");
+  });
+
+  it("renders unknown tool with default muted symbol", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "a-unknown",
+          role: "assistant",
+          content: "Using tool.",
+          timestamp: new Date().toISOString(),
+          tools: [{ toolUseId: "t3", name: "SomeNewTool" }],
+        },
+      ],
+    });
+
+    const badge = el.querySelector(".chat__tool-type");
+    expect(badge!.textContent).toBe("✦");
+    expect((badge as HTMLElement).style.color).toBe("var(--muted)");
+  });
+
+  it("renders multiple tools each with their own symbol", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "a-multi",
+          role: "assistant",
+          content: "Working.",
+          timestamp: new Date().toISOString(),
+          tools: [
+            { toolUseId: "t1", name: "Glob" },
+            { toolUseId: "t2", name: "Edit" },
+          ],
+        },
+      ],
+    });
+
+    const badges = el.querySelectorAll(".chat__tool-type");
+    expect(badges.length).toBe(2);
+    expect(badges[0].textContent).toBe("✶"); // Glob
+    expect(badges[1].textContent).toBe("✐"); // Edit
+  });
+
+  it("agent blocks remain unchanged (teal badge, no tool-type)", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "a-agent",
+          role: "assistant",
+          content: "Delegating.",
+          timestamp: new Date().toISOString(),
+          agents: [
+            {
+              toolUseId: "ag1",
+              description: "Search codebase",
+              subagentType: "Explore",
+              prompt: "Find all routes",
+            },
+          ],
+        },
+      ],
+    });
+
+    // Agent should use existing .chat__agent-type, not .chat__tool-type
+    const agentType = el.querySelector(".chat__agent-type");
+    expect(agentType).not.toBeNull();
+    expect(agentType!.textContent).toBe("Explore");
+
+    // No tool-type badge in agent blocks
+    const toolType = el.querySelector(".chat__tool-type");
+    expect(toolType).toBeNull();
   });
 });

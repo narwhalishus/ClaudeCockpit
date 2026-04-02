@@ -951,6 +951,73 @@
   font-style: italic;
 }
 
+/* ── Tool type badge (per-tool colored symbol) ── */
+
+.chat__tool-type {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.chat__tool-name {
+  color: var(--text);
+}
+
+/* ── Structured user messages (slash command XML) ── */
+
+.chat__user-command {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.chat__user-command-name {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--accent);
+  background: var(--accent-subtle);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+}
+
+.chat__user-command-args {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+.chat__user-stdout {
+  margin: 6px 0 4px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.chat__user-caveat {
+  display: block;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
 /* ── Cursor + Input ── */
 
 .chat__cursor {

@@ -40,6 +40,117 @@ function preprocessInsights(src: string): string {
   });
 }
 
+// ── Structured user message rendering ─────────────────────────────────
+// Claude Code wraps slash commands in XML tags. Parse them into styled blocks.
+
+interface UserContentSegment {
+  type: "text" | "command" | "stdout" | "caveat";
+  commandName?: string;
+  commandArgs?: string;
+  content?: string;
+}
+
+const USER_TAG_RE = /<(command-name|command-args|local-command-stdout|local-command-caveat)>([\s\S]*?)<\/\1>/g;
+
+function parseUserContent(text: string): UserContentSegment[] {
+  const segments: UserContentSegment[] = [];
+  let lastIndex = 0;
+  let commandName: string | undefined;
+  let commandArgs: string | undefined;
+
+  // First pass: extract tags and interleaved text
+  const matches = [...text.matchAll(USER_TAG_RE)];
+  for (const m of matches) {
+    // Add any plain text before this tag
+    if (m.index! > lastIndex) {
+      const plain = text.slice(lastIndex, m.index!).trim();
+      if (plain) segments.push({ type: "text", content: plain });
+    }
+
+    const [, tagName, tagContent] = m;
+    switch (tagName) {
+      case "command-name":
+        commandName = tagContent.trim();
+        break;
+      case "command-args":
+        commandArgs = tagContent.trim();
+        break;
+      case "local-command-stdout":
+        segments.push({ type: "stdout", content: tagContent });
+        break;
+      case "local-command-caveat":
+        segments.push({ type: "caveat", content: tagContent.trim() });
+        break;
+    }
+    lastIndex = m.index! + m[0].length;
+  }
+
+  // If we found command-name/args, emit a command segment at the front
+  if (commandName) {
+    segments.unshift({ type: "command", commandName, commandArgs });
+  }
+
+  // Trailing plain text
+  if (lastIndex < text.length) {
+    const trailing = text.slice(lastIndex).trim();
+    if (trailing) segments.push({ type: "text", content: trailing });
+  }
+
+  return segments;
+}
+
+function renderUserContent(text: string) {
+  // Quick path: no XML tags → plain text
+  if (!text.includes("<command-name") && !text.includes("<local-command-")) {
+    return text.trim();
+  }
+
+  const segments = parseUserContent(text);
+  if (segments.length === 0) return text.trim();
+
+  return segments.map((seg) => {
+    switch (seg.type) {
+      case "command":
+        return html`<span class="chat__user-command">
+          <span class="chat__user-command-name">/${seg.commandName}</span>${seg.commandArgs
+            ? html`<span class="chat__user-command-args">${seg.commandArgs}</span>`
+            : nothing}
+        </span>`;
+      case "stdout":
+        return html`<pre class="chat__user-stdout">${seg.content}</pre>`;
+      case "caveat":
+        return html`<span class="chat__user-caveat">${seg.content}</span>`;
+      default:
+        return html`<span>${seg.content}</span>`;
+    }
+  });
+}
+
+// ── Per-tool visual styling ───────────────────────────────────────────
+
+interface ToolVisual {
+  symbol: string;
+  color: string;
+}
+
+const TOOL_VISUALS: Record<string, ToolVisual> = {
+  Bash:          { symbol: "▶", color: "var(--ok)" },
+  Read:          { symbol: "□", color: "var(--info)" },
+  Write:         { symbol: "✎", color: "var(--warn)" },
+  Edit:          { symbol: "✐", color: "var(--warn)" },
+  Glob:          { symbol: "✶", color: "var(--accent-2)" },
+  Grep:          { symbol: "⌕", color: "var(--accent-2)" },
+  WebFetch:      { symbol: "☉", color: "var(--info)" },
+  WebSearch:     { symbol: "☉", color: "var(--info)" },
+  AskUserQuestion: { symbol: "❓", color: "var(--accent)" },
+};
+
+const DEFAULT_TOOL_VISUAL: ToolVisual = { symbol: "✦", color: "var(--muted)" };
+
+function getToolVisual(name: string): ToolVisual {
+  return TOOL_VISUALS[name] ?? DEFAULT_TOOL_VISUAL;
+}
+
 function groupSessionsByDay(
   sessions: SessionSummary[]
 ): { label: string; sessions: SessionSummary[] }[] {
@@ -916,7 +1027,7 @@ export class CockpitChat extends LitElement {
     const content = msg.content
       ? isAssistant
         ? html`<div class="markdown-body">${unsafeHTML(md.parse(preprocessInsights(msg.content)) as string)}</div>`
-        : msg.content.trim()
+        : renderUserContent(msg.content)
       : msg.streaming
         ? html`<span class="chat__cursor"></span>`
         : "";
@@ -963,9 +1074,13 @@ export class CockpitChat extends LitElement {
   }
 
   private _renderToolBlock(tool: ToolBlock) {
+    const visual = getToolVisual(tool.name);
     return html`
       <details class="chat__tool-block">
-        <summary class="chat__tool-summary">${tool.name}</summary>
+        <summary class="chat__tool-summary">
+          <span class="chat__tool-type" style="color: ${visual.color}; background: color-mix(in srgb, ${visual.color} 10%, transparent)">${visual.symbol}</span>
+          <span class="chat__tool-name">${tool.name}</span>
+        </summary>
         ${tool.result
           ? html`<div class="chat__tool-result">${tool.result}</div>`
           : nothing}

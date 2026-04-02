@@ -64,6 +64,7 @@
   --danger-muted: rgba(239, 68, 68, 0.75);
   --danger-subtle: rgba(239, 68, 68, 0.08);
   --info: #3b82f6;
+  --info-subtle: rgba(59, 130, 246, 0.08);
 
   /* Focus */
   --focus: rgba(218, 119, 86, 0.2);
