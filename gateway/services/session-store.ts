@@ -143,7 +143,7 @@ export function summarizeSession(
 
     messageCount++;
 
-    if (line.message?.model && !model) {
+    if (line.message?.model && !model && !line.message.model.startsWith("<")) {
       model = line.message.model;
     }
 

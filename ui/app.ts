@@ -70,8 +70,8 @@ export class CockpitApp extends LitElement {
       if (this.gateway.connected) this._refetchData();
     }, 30_000);
 
-    // Also fetch via HTTP as fallback (in case WS takes a moment)
-    this._fetchViaHttp();
+    // Fetch via HTTP with retries (gateway may still be starting)
+    this._fetchViaHttpWithRetry();
   }
 
   override disconnectedCallback() {
@@ -128,8 +128,20 @@ export class CockpitApp extends LitElement {
     }
   }
 
-  /** Fetch data via HTTP (fallback) */
-  private async _fetchViaHttp() {
+  /** Retry HTTP fetch on startup — gateway may still be compiling via tsx */
+  private async _fetchViaHttpWithRetry() {
+    const delays = [1000, 2000, 3000];
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      const ok = await this._fetchViaHttp();
+      if (ok) return;
+      if (attempt < delays.length) {
+        await new Promise((r) => setTimeout(r, delays[attempt]));
+      }
+    }
+  }
+
+  /** Fetch data via HTTP (fallback). Returns true if successful. */
+  private async _fetchViaHttp(): Promise<boolean> {
     this.loading = true;
     try {
       const projectQuery = this.selectedProjectId
@@ -150,9 +162,9 @@ export class CockpitApp extends LitElement {
         this.projects = data.projects;
       }
       this.connected = true;
-    } catch (err) {
-      console.error("HTTP fetch failed:", err);
-      this.connected = false;
+      return true;
+    } catch {
+      return false;
     } finally {
       this.loading = false;
     }

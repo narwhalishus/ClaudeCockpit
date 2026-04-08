@@ -349,6 +349,34 @@ describe("summarizeSession", () => {
 
     expect(result!.customTitle).toBeUndefined();
   });
+
+  it("skips synthetic model names and picks the first real model", () => {
+    const synthetic = assistantLine({
+      uuid: "a-syn",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "No response requested." }],
+        model: "<synthetic>",
+        id: "msg_syn",
+        usage: { input_tokens: 0, output_tokens: 0 },
+      },
+    });
+    const real = assistantLine({
+      uuid: "a-real",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "Here's the fix." }],
+        model: "claude-sonnet-4-20260301",
+        id: "msg_real",
+        usage: { input_tokens: 200, output_tokens: 100 },
+      },
+    });
+
+    const lines = [userLine(), synthetic, real];
+    const result = summarizeSession(lines, "proj", "/proj");
+
+    expect(result!.model).toBe("claude-sonnet-4-20260301");
+  });
 });
 
 // ---------------------------------------------------------------------------
