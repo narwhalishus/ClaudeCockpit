@@ -238,6 +238,7 @@ export class CockpitChat extends LitElement {
   @state() private summaryVisible = false;
   @state() private selectedModel: string | null = null;
   @state() private generatingTitleIds: Set<string> = new Set();
+  @state() private searchQuery = "";
 
   private gateway: GatewayBrowserClient | null = null;
   private unsubscribers: (() => void)[] = [];
@@ -679,10 +680,20 @@ export class CockpitChat extends LitElement {
   }
 
   private _renderSidebar() {
-    const pinned = this.sessions.filter((s) =>
+    const q = this.searchQuery.toLowerCase().trim();
+    const filtered = q
+      ? this.sessions.filter((s) => {
+          const title = (s.customTitle || "").toLowerCase();
+          const prompt = (s.firstPrompt || "").toLowerCase();
+          const id = s.sessionId.toLowerCase();
+          return title.includes(q) || prompt.includes(q) || id.includes(q);
+        })
+      : this.sessions;
+
+    const pinned = filtered.filter((s) =>
       this.pinnedSessionIds.has(s.sessionId)
     );
-    const unpinned = this.sessions.filter(
+    const unpinned = filtered.filter(
       (s) => !this.pinnedSessionIds.has(s.sessionId)
     );
     const groups = groupSessionsByDay(unpinned);
@@ -693,6 +704,16 @@ export class CockpitChat extends LitElement {
           <button class="btn btn--primary chat__new-btn" @click=${this._newSession}>
             + New Session
           </button>
+        </div>
+
+        <div class="chat__search-wrap">
+          <input
+            class="chat__search-input"
+            type="text"
+            placeholder="Search sessions..."
+            .value=${this.searchQuery}
+            @input=${(e: InputEvent) => { this.searchQuery = (e.target as HTMLInputElement).value; }}
+          />
         </div>
 
         <div class="chat__session-list">
@@ -714,8 +735,8 @@ export class CockpitChat extends LitElement {
             `
           )}
 
-          ${this.sessions.length === 0
-            ? html`<div class="chat__sidebar-empty">No sessions yet</div>`
+          ${filtered.length === 0
+            ? html`<div class="chat__sidebar-empty">${q ? "No matching sessions" : "No sessions yet"}</div>`
             : nothing}
         </div>
       </aside>
