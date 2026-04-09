@@ -282,6 +282,38 @@
 .statusDot--danger { background: var(--danger); }
 .statusDot--muted { background: var(--muted); }
 
+/* ── Connection Banner ── */
+
+.connection-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  background: color-mix(in srgb, var(--warn) 8%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 25%, var(--border));
+  animation: rise 0.2s var(--ease-out) both;
+}
+
+.connection-banner__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--warn);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.connection-banner__text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--warn);
+}
+
 /* ===========================================
    Empty State
    =========================================== */
@@ -676,11 +708,47 @@
 }
 
 .chat__msg--error {
-  background: var(--danger-subtle);
-  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
-  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, var(--border));
+  border-left: 3px solid var(--danger);
+  color: var(--text);
+  padding: 10px 14px;
+  align-self: stretch;
+  max-width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.chat__error-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: white;
   font-size: 12px;
-  padding: 6px 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.chat__error-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.chat__error-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  font-family: var(--mono);
 }
 
 .chat__msg-role {
