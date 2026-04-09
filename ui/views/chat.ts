@@ -13,7 +13,7 @@ import type {
   ToolBlock,
   ToolApprovalEvent,
 } from "../types.ts";
-import { formatTokens, formatRelativeTime, formatDuration, shortenHomePath } from "../utils/format.ts";
+import { formatTokens, formatRelativeTime, formatDuration, shortenHomePath, expandHomePath, setHomeDirFromPath } from "../utils/format.ts";
 import {
   MODEL_OPTIONS,
   CHAT_REQUEST_TIMEOUT_MS,
@@ -65,6 +65,48 @@ function preprocessInsights(src: string): string {
     return `<div class="chat__insight"><div class="chat__insight-header">★ Insight</div>\n\n${escapedBody}\n\n</div>`;
   });
 }
+
+// ── File path linkification ──────────────────────────────────────────
+
+const FILE_PATH_RE = /(?:~\/|\/(?=[a-zA-Z0-9._]))(?:[a-zA-Z0-9._@-]+\/)+[a-zA-Z0-9._@-]+(?::(\d+)(?::(\d+))?)?/;
+
+md.use({
+  extensions: [{
+    name: "filePath",
+    level: "inline" as const,
+    start(src: string) {
+      const m = src.match(/~\/|\/(?=[a-zA-Z0-9._])/);
+      return m ? m.index! : undefined;
+    },
+    tokenizer(src: string) {
+      const match = FILE_PATH_RE.exec(src);
+      if (!match || match.index !== 0) return undefined;
+      return {
+        type: "filePath",
+        raw: match[0],
+        path: match[0].replace(/:(\d+)(?::(\d+))?$/, ""),
+        line: match[1] || "",
+        col: match[2] || "",
+      };
+    },
+    renderer(token) {
+      // Auto-detect home directory from absolute paths
+      if (token.path.startsWith("/Users/")) {
+        setHomeDirFromPath(token.path);
+      }
+      const expanded = token.path.startsWith("~/")
+        ? expandHomePath(token.path)
+        : token.path;
+      let href = `vscode://file${expanded}`;
+      if (token.line) href += `:${token.line}`;
+      if (token.col) href += `:${token.col}`;
+      const display = shortenHomePath(token.path)
+        + (token.line ? `:${token.line}` : "")
+        + (token.col ? `:${token.col}` : "");
+      return `<a class="chat__file-path" href="${href}">${display}</a>`;
+    },
+  }],
+});
 
 // ── Per-tool visual styling ───────────────────────────────────────────
 

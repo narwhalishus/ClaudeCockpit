@@ -29,6 +29,21 @@ export function shortenHomePath(path: string): string {
   return path.replace(/^\/Users\/[^/]+/, "~");
 }
 
+/** Home directory prefix for expanding ~/... paths. Set via setHomeDirFromPath(). */
+let _homeDirPrefix = "";
+
+/** Extract and cache the home directory from an absolute macOS path. */
+export function setHomeDirFromPath(absPath: string): void {
+  const m = absPath.match(/^\/Users\/[^/]+/);
+  if (m) _homeDirPrefix = m[0];
+}
+
+/** Expand ~/... to an absolute path using the cached home directory. */
+export function expandHomePath(tilePath: string): string {
+  if (!tilePath.startsWith("~/") || !_homeDirPrefix) return tilePath;
+  return _homeDirPrefix + tilePath.slice(1);
+}
+
 /** Format gateway uptime from an ISO start time (e.g. "45s", "3m 20s", "2h 15m", "1d 4h") */
 export function formatUptime(startIso: string): string {
   const ms = Date.now() - new Date(startIso).getTime();

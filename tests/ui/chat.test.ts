@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import "../../ui/views/chat.ts";
 import type { CockpitChat } from "../../ui/views/chat.ts";
 import { sanitizeHtml } from "../../ui/views/chat.ts";
+import { setHomeDirFromPath } from "../../ui/utils/format.ts";
 import { renderEl, setProps } from "../helpers.ts";
 
 describe("cockpit-chat markdown rendering", () => {
@@ -1194,6 +1195,160 @@ describe("cockpit-chat tool block styling", () => {
 });
 
 // ---------------------------------------------------------------------------
+// File path linkification
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat file path linkification", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    setHomeDirFromPath("/Users/bryao/Code/test");
+  });
+
+  it("linkifies absolute file paths", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp1",
+        role: "assistant",
+        content: "Check /Users/bryao/Code/foo.ts for details.",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    const link = el.querySelector(".chat__file-path") as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute("href")).toBe("vscode://file/Users/bryao/Code/foo.ts");
+    expect(link.textContent).toBe("~/Code/foo.ts");
+  });
+
+  it("linkifies path with line number", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp2",
+        role: "assistant",
+        content: "See /Users/bryao/Code/foo.ts:42 here.",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    const link = el.querySelector(".chat__file-path") as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute("href")).toBe("vscode://file/Users/bryao/Code/foo.ts:42");
+    expect(link.textContent).toBe("~/Code/foo.ts:42");
+  });
+
+  it("linkifies path with line and column", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp3",
+        role: "assistant",
+        content: "At /Users/bryao/Code/foo.ts:42:10 exactly.",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    const link = el.querySelector(".chat__file-path") as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute("href")).toBe("vscode://file/Users/bryao/Code/foo.ts:42:10");
+    expect(link.textContent).toBe("~/Code/foo.ts:42:10");
+  });
+
+  it("expands ~/path in href, shows shortened display text", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp4",
+        role: "assistant",
+        content: "See ~/Code/foo.ts for details.",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    const link = el.querySelector(".chat__file-path") as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute("href")).toBe("vscode://file/Users/bryao/Code/foo.ts");
+    expect(link.textContent).toBe("~/Code/foo.ts");
+  });
+
+  it("does not linkify paths inside fenced code blocks", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp5",
+        role: "assistant",
+        content: "```\n/Users/bryao/Code/foo.ts\n```",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    expect(el.querySelector(".chat__file-path")).toBeNull();
+  });
+
+  it("does not linkify paths inside inline backticks", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp6",
+        role: "assistant",
+        content: "Check `/Users/bryao/Code/foo.ts` for info.",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    expect(el.querySelector(".chat__file-path")).toBeNull();
+  });
+
+  it("only linkifies the path portion in mixed prose", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp7",
+        role: "assistant",
+        content: "I modified /Users/bryao/Code/foo.ts and it works.",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    const link = el.querySelector(".chat__file-path") as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    const p = el.querySelector(".markdown-body p")!;
+    expect(p.textContent).toContain("I modified");
+    expect(p.textContent).toContain("and it works.");
+  });
+
+  it("linkifies multiple paths independently", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp8",
+        role: "assistant",
+        content: "Changed /Users/bryao/Code/a.ts and /Users/bryao/Code/b.ts today.",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    const links = el.querySelectorAll(".chat__file-path");
+    expect(links.length).toBe(2);
+  });
+
+  it("does not linkify non-path slashes", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [{
+        uuid: "fp9",
+        role: "assistant",
+        content: "Use x/y or /a for config.",
+        timestamp: new Date().toISOString(),
+      }],
+    });
+    expect(el.querySelector(".chat__file-path")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // HTML sanitization (XSS prevention)
 // ---------------------------------------------------------------------------
 
@@ -1244,6 +1399,11 @@ describe("sanitizeHtml", () => {
   it("strips <embed> tags", () => {
     const input = '<embed src="evil.swf"><p>ok</p>';
     expect(sanitizeHtml(input)).toBe("<p>ok</p>");
+  });
+
+  it("preserves vscode:// href in anchors", () => {
+    const input = '<a class="chat__file-path" href="vscode://file/Users/bryao/Code/foo.ts:42">~/Code/foo.ts:42</a>';
+    expect(sanitizeHtml(input)).toBe(input);
   });
 });
 

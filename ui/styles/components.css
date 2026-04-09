@@ -883,6 +883,24 @@
   text-underline-offset: 2px;
 }
 
+/* File path pills (vscode:// links) */
+.chat__file-path {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--info);
+  text-decoration: none;
+  background: var(--info-subtle);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--info) 15%, var(--border));
+  word-break: break-all;
+}
+.chat__file-path:hover {
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--info) 15%, transparent);
+  border-color: color-mix(in srgb, var(--info) 30%, var(--border));
+}
+
 /* Inline code */
 .markdown-body code {
   font-family: var(--mono);
