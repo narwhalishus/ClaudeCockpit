@@ -1,4 +1,4 @@
-import { LitElement, html } from "lit";
+import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import type {
   CockpitTab,
@@ -284,6 +284,13 @@ export class CockpitApp extends LitElement {
             </span>
           </div>
         </header>
+
+        ${!this.connected && !this.loading
+          ? html`<div class="connection-banner">
+              <span class="connection-banner__dot"></span>
+              <span class="connection-banner__text">Gateway disconnected — reconnecting...</span>
+            </div>`
+          : nothing}
 
         <main class="content">
           ${this._renderTab()}

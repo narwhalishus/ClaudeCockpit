@@ -399,6 +399,109 @@ describe("cockpit-chat markdown rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Error message rendering
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat error rendering", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("renders error messages with error styling", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "e1",
+          role: "assistant",
+          content: "__ERROR__Something went wrong",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const errorMsg = el.querySelector(".chat__msg--error");
+    expect(errorMsg).not.toBeNull();
+    expect(errorMsg?.querySelector(".chat__error-text")?.textContent).toBe("Something went wrong");
+  });
+
+  it("renders CLI-not-found with install instructions", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "e2",
+          role: "assistant",
+          content: "__ERROR__Claude CLI not found. Install it with: npm install -g @anthropic-ai/claude-code",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const errorText = el.querySelector(".chat__error-text");
+    expect(errorText?.textContent).toContain("npm install");
+  });
+
+  it("does not render normal messages with error styling", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "a-normal",
+          role: "assistant",
+          content: "Normal response text",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const errorMsg = el.querySelector(".chat__msg--error");
+    expect(errorMsg).toBeNull();
+  });
+
+  it("shows error icon with exclamation mark", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "e3",
+          role: "assistant",
+          content: "__ERROR__Test error",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const icon = el.querySelector(".chat__error-icon");
+    expect(icon).not.toBeNull();
+    expect(icon?.textContent).toBe("!");
+  });
+
+  it("shows error title label", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      messages: [
+        {
+          uuid: "e4",
+          role: "assistant",
+          content: "__ERROR__Any error",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const title = el.querySelector(".chat__error-title");
+    expect(title).not.toBeNull();
+    expect(title?.textContent).toBe("Error");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Session title display + rename
 // ---------------------------------------------------------------------------
 

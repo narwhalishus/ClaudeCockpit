@@ -287,6 +287,32 @@ export class CockpitChat extends LitElement {
           this.summarizing = false;
           this.summaryContent = "Failed to generate summary.";
         }
+      }),
+      gw.on("chat.error", (data: unknown) => {
+        const { chatId, message } = data as { chatId: string; message: string };
+        if (chatId !== this.currentChatId) return;
+        this.streaming = false;
+        const msgs = [...this.messages];
+        // Remove empty streaming placeholder
+        const last = msgs[msgs.length - 1];
+        if (last?.role === "assistant" && last.streaming && !last.content) {
+          msgs.pop();
+        } else if (last?.role === "assistant" && last.streaming) {
+          msgs[msgs.length - 1] = { ...last, streaming: false };
+        }
+        // Format helpful error message
+        let errorText = message;
+        if (message.includes("ENOENT") || message.includes("not found") || message.toLowerCase().includes("spawn")) {
+          errorText = "Claude CLI not found. Install it with: npm install -g @anthropic-ai/claude-code";
+        }
+        msgs.push({
+          uuid: `error-${Date.now()}`,
+          role: "assistant",
+          content: `__ERROR__${errorText}`,
+          timestamp: new Date().toISOString(),
+        });
+        this.messages = msgs;
+        this._scrollToBottom();
       })
     );
 
@@ -1089,6 +1115,20 @@ export class CockpitChat extends LitElement {
   }
 
   private _renderMessage(msg: ChatMessage) {
+    // Error messages get special rendering
+    if (msg.content.startsWith("__ERROR__")) {
+      const errorText = msg.content.slice("__ERROR__".length);
+      return html`
+        <div class="chat__msg chat__msg--error">
+          <div class="chat__error-icon">!</div>
+          <div class="chat__error-content">
+            <div class="chat__error-title">Error</div>
+            <div class="chat__error-text">${errorText}</div>
+          </div>
+        </div>
+      `;
+    }
+
     const isAssistant = msg.role === "assistant";
     const content = msg.content
       ? isAssistant

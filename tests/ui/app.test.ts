@@ -63,6 +63,45 @@ describe("cockpit-app project selector", () => {
   });
 });
 
+describe("cockpit-app connection banner", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    window.location.hash = "";
+  });
+
+  it("shows connection banner when disconnected", async () => {
+    const el = document.createElement("cockpit-app") as CockpitApp;
+    await renderEl(el);
+    await setProps(el, { loading: false, connected: false });
+
+    const banner = el.querySelector(".connection-banner");
+    expect(banner).not.toBeNull();
+    expect(banner?.textContent).toContain("Gateway disconnected");
+  });
+
+  it("hides connection banner when connected", async () => {
+    const el = document.createElement("cockpit-app") as CockpitApp;
+    await renderEl(el);
+    await setProps(el, { loading: false, connected: true });
+
+    const banner = el.querySelector(".connection-banner");
+    expect(banner).toBeNull();
+  });
+
+  it("hides connection banner when both connected and loaded", async () => {
+    const el = document.createElement("cockpit-app") as CockpitApp;
+    await renderEl(el);
+    await setProps(el, { loading: false, connected: true });
+
+    const banner = el.querySelector(".connection-banner");
+    expect(banner).toBeNull();
+    // Verify the topbar pill shows Online
+    const pill = el.querySelector(".pill--ok");
+    expect(pill).not.toBeNull();
+    expect(pill?.textContent).toContain("Online");
+  });
+});
+
 describe("cockpit-app hash parsing", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
