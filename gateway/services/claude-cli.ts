@@ -354,11 +354,12 @@ export function abortChat(chatId: string): boolean {
  * Inspired by OpenClaw's generateTopicLabel() — 3-5 words, max 50 chars.
  * Returns null on failure (timeout, error, empty result).
  */
-export async function generateTitle(firstPrompt: string): Promise<string | null> {
+export async function generateTitle(firstPrompt: string, model?: string): Promise<string | null> {
   const prompt = `Generate a short title (3-5 words, max 50 characters) for a conversation that starts with the message below. Reply with ONLY the title, no quotes, no punctuation at the end.\n\nMessage: ${firstPrompt.slice(0, 300)}`;
 
   const proc = new ClaudeProcess({
     prompt,
+    model,
     maxBudget: TITLE_GENERATION_MAX_BUDGET,
     noSession: true,
   });

@@ -63,7 +63,7 @@ vi.mock("../../gateway/services/claude-cli.ts", () => ({
 import { EventEmitter } from "node:events";
 import { handleWsRequest } from "../../gateway/server.ts";
 import { getOverviewStats, listSessions, listProjects, getSessionMessages, getSessionTranscript, renameSession } from "../../gateway/services/session-store.ts";
-import { startChat, abortChat, getProcess } from "../../gateway/services/claude-cli.ts";
+import { startChat, abortChat, getProcess, generateTitle } from "../../gateway/services/claude-cli.ts";
 import type { RequestFrame } from "../../gateway/protocol/frames.ts";
 
 // ── Mock WebSocket ────────────────────────────────────────────────────────
@@ -509,5 +509,82 @@ describe("HTTP handler", () => {
     expect(data.status).toBe(500);
     const body = JSON.parse(data.body);
     expect(body.error).toBe("Internal server error");
+  });
+});
+
+// ── Batch title generation on sessions.list ──────────────────────────────
+
+describe("batch title generation on sessions.list", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("triggers title generation for untitled sessions", async () => {
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { sessionId: "s1", firstPrompt: "Hello", customTitle: undefined },
+      { sessionId: "s2", firstPrompt: "World", customTitle: "Existing Title" },
+    ] as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("sessions.list", {}));
+
+    // Give async batch time to start
+    await new Promise((r) => setTimeout(r, 50));
+    // Should only generate for s1 (untitled), not s2 (already has title)
+    expect(vi.mocked(generateTitle)).toHaveBeenCalledWith("Hello", "claude-haiku-4-5-20251001");
+    expect(vi.mocked(generateTitle)).not.toHaveBeenCalledWith("World", expect.anything());
+  });
+
+  it("skips sessions without firstPrompt", async () => {
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { sessionId: "s3", firstPrompt: "", customTitle: undefined },
+    ] as never);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("sessions.list", {}));
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(vi.mocked(generateTitle)).not.toHaveBeenCalled();
+  });
+
+  it("does not re-trigger for sessions already attempted", async () => {
+    vi.mocked(listSessions).mockResolvedValue([
+      { sessionId: "s4", firstPrompt: "Test", customTitle: undefined },
+    ] as never);
+
+    const ws = mockWs();
+    // First call — should trigger
+    await handleWsRequest(ws as never, req("sessions.list", {}));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(vi.mocked(generateTitle)).toHaveBeenCalledTimes(1);
+
+    vi.mocked(generateTitle).mockClear();
+
+    // Second call — same session, should NOT re-trigger
+    await handleWsRequest(ws as never, req("sessions.list", {}));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(vi.mocked(generateTitle)).not.toHaveBeenCalled();
+  });
+
+  it("sends session.titled event and calls renameSession on success", async () => {
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { sessionId: "s5", firstPrompt: "Build a dashboard", customTitle: undefined },
+    ] as never);
+    vi.mocked(generateTitle).mockResolvedValueOnce("Dashboard Builder");
+    vi.mocked(renameSession).mockResolvedValueOnce(true);
+
+    const ws = mockWs();
+    await handleWsRequest(ws as never, req("sessions.list", {}));
+
+    // Wait for async batch to complete
+    await new Promise((r) => setTimeout(r, 100));
+
+    expect(vi.mocked(renameSession)).toHaveBeenCalledWith("s5", "Dashboard Builder");
+    const frames = ws._sent.map((s: string) => JSON.parse(s));
+    const titledEvent = frames.find(
+      (f: Record<string, unknown>) => f.event === "session.titled"
+    );
+    expect(titledEvent).toBeDefined();
+    expect(titledEvent.data).toEqual({ sessionId: "s5", title: "Dashboard Builder" });
   });
 });

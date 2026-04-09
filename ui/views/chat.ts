@@ -237,6 +237,7 @@ export class CockpitChat extends LitElement {
   @state() private summarizing = false;
   @state() private summaryVisible = false;
   @state() private selectedModel: string | null = null;
+  @state() private generatingTitleIds: Set<string> = new Set();
 
   private gateway: GatewayBrowserClient | null = null;
   private unsubscribers: (() => void)[] = [];
@@ -260,6 +261,9 @@ export class CockpitChat extends LitElement {
         this.sessions = this.sessions.map((s) =>
           s.sessionId === sessionId ? { ...s, customTitle: title } : s
         );
+        const newSet = new Set(this.generatingTitleIds);
+        newSet.delete(sessionId);
+        this.generatingTitleIds = newSet;
       }),
       gw.on("tool.approval", (data: unknown) => {
         this.pendingApproval = data as ToolApprovalEvent;
@@ -316,6 +320,13 @@ export class CockpitChat extends LitElement {
         project: this.projectId || undefined,
       });
       this.sessions = (result as { sessions: SessionSummary[] }).sessions;
+      // Track which sessions are waiting for auto-generated titles
+      const untitled = this.sessions
+        .filter((s) => !s.customTitle && s.firstPrompt)
+        .map((s) => s.sessionId);
+      if (untitled.length > 0) {
+        this.generatingTitleIds = new Set(untitled);
+      }
     } catch (err) {
       console.error("Failed to load sessions:", err);
     }
@@ -718,7 +729,7 @@ export class CockpitChat extends LitElement {
 
     return html`
       <div
-        class="chat__session-item ${active ? "chat__session-item--active" : ""}"
+        class="chat__session-item ${active ? "chat__session-item--active" : ""} ${!s.customTitle && this.generatingTitleIds.has(s.sessionId) ? "chat__session-item--generating" : ""}"
         @click=${() => this._selectSession(s.sessionId)}
       >
         <div class="chat__session-item-main">
