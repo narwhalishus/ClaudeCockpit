@@ -625,6 +625,27 @@
   font-size: 12px;
 }
 
+/* ── Title generation loading state ── */
+
+.chat__session-item--generating .chat__session-item-title {
+  background: linear-gradient(
+    90deg,
+    var(--text) 0%,
+    var(--muted) 40%,
+    var(--text) 80%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* ── Main conversation panel ── */
 
 .chat__main {

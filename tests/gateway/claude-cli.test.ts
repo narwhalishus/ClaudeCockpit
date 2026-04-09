@@ -68,6 +68,28 @@ describe("ClaudeProcess.buildArgs", () => {
     expect(args).toContain("--model");
     expect(args).toContain("claude-sonnet-4-6");
   });
+
+  it("includes --no-session-persistence when noSession is true", () => {
+    const proc = new ClaudeProcess({ prompt: "test", noSession: true });
+    const args = proc.buildArgs();
+    expect(args).toContain("--no-session-persistence");
+  });
+
+  it("includes both --model and --no-session-persistence for title generation config", () => {
+    const proc = new ClaudeProcess({
+      prompt: "test",
+      model: "claude-haiku-4-5-20251001",
+      noSession: true,
+      maxBudget: 0.05,
+    });
+    const args = proc.buildArgs();
+
+    expect(args).toContain("--model");
+    expect(args).toContain("claude-haiku-4-5-20251001");
+    expect(args).toContain("--no-session-persistence");
+    expect(args).toContain("--max-budget-usd");
+    expect(args).toContain("0.05");
+  });
 });
 
 describe("ClaudeProcess.handleParsedLine — control_request", () => {

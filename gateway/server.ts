@@ -13,7 +13,7 @@ import {
   renameSession,
 } from "./services/session-store.ts";
 import { startChat, abortChat, getProcess, generateTitle, type ClaudeProcess } from "./services/claude-cli.ts";
-import { SUMMARY_MAX_BUDGET, TITLE_MAX_LENGTH } from "./constants.ts";
+import { SUMMARY_MAX_BUDGET, TITLE_MAX_LENGTH, TITLE_GENERATION_MODEL, MAX_CONCURRENT_TITLE_GENERATIONS } from "./constants.ts";
 import {
   parseFrame,
   serializeFrame,
@@ -136,6 +136,8 @@ async function handleSessionsList({ ws, id, p }: WsContext) {
   const projectId = getString(p, "project");
   const sessions = await listSessions(projectId);
   send(ws, okResponse(id, { sessions, count: sessions.length }));
+  // Trigger title generation for untitled sessions in the background
+  batchGenerateTitles(ws, sessions);
 }
 
 async function handleProjectsList({ ws, id }: WsContext) {
@@ -160,6 +162,9 @@ async function handleSessionsMessages({ ws, id, p }: WsContext) {
   send(ws, okResponse(id, result));
 }
 
+/** Sessions already attempted for title generation in this gateway lifecycle */
+const titleAttempted = new Set<string>();
+
 function maybeGenerateTitle(ws: WebSocket, sessionId: string, prompt: string) {
   generateTitle(prompt).then(async (title) => {
     if (title) {
@@ -167,6 +172,41 @@ function maybeGenerateTitle(ws: WebSocket, sessionId: string, prompt: string) {
       send(ws, event("session.titled", { sessionId, title }));
     }
   }).catch((err) => console.error("Title generation failed:", err));
+}
+
+/** Generate titles for untitled sessions in the background, up to N at a time */
+function batchGenerateTitles(ws: WebSocket, sessions: Array<{ sessionId: string; customTitle?: string; firstPrompt: string }>) {
+  const untitled = sessions.filter(
+    (s) => !s.customTitle && s.firstPrompt && !titleAttempted.has(s.sessionId)
+  );
+  if (untitled.length === 0) return;
+
+  // Mark all as attempted immediately to prevent re-triggering
+  for (const s of untitled) titleAttempted.add(s.sessionId);
+
+  // Process in batches of MAX_CONCURRENT_TITLE_GENERATIONS
+  let active = 0;
+  const queue = [...untitled];
+
+  function next() {
+    while (active < MAX_CONCURRENT_TITLE_GENERATIONS && queue.length > 0) {
+      const s = queue.shift()!;
+      active++;
+      generateTitle(s.firstPrompt, TITLE_GENERATION_MODEL)
+        .then(async (title) => {
+          if (title) {
+            await renameSession(s.sessionId, title);
+            send(ws, event("session.titled", { sessionId: s.sessionId, title }));
+          }
+        })
+        .catch((err) => console.error(`Title generation failed for ${s.sessionId}:`, err))
+        .finally(() => {
+          active--;
+          next();
+        });
+    }
+  }
+  next();
 }
 
 function wireChatEvents(
