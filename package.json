@@ -1,7 +1,22 @@
 {
   "name": "claude-cockpit",
-  "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "A visual cockpit for Claude Code sessions — browse history, stream live chat, approve tools, track costs",
+  "author": "Bryan Yao",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bryao/ClaudeCockpit.git"
+  },
+  "keywords": [
+    "claude-code",
+    "dashboard",
+    "session-viewer",
+    "ai-tools",
+    "developer-tools",
+    "lit",
+    "websocket"
+  ],
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"tsx watch gateway/server.ts\"",

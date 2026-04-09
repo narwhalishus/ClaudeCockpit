@@ -131,17 +131,48 @@
   <h1>Change<span>log</span></h1>
   <p class="subtitle">
     Release history for ClaudeCockpit. Versions follow phase milestones.
-    <br><a href="/roadmap.html">Roadmap</a> &middot; <a href="/contributing.html">Contributing</a> &middot; <a href="/testing.html">Testing</a>
+    <br><a href="/roadmap.html">Roadmap</a> &middot; <a href="/contributing.html">Contributing</a> &middot; <a href="/testing.html">Testing</a> &middot; <a href="/release.html">Release Plan</a>
   </p>
 
   <!-- ============================================================ -->
 
-  <!-- v0.7.0 -->
+  <!-- v1.0.0 -->
   <div class="release release--latest">
+    <div class="release__head">
+      <span class="release__version">v1.0.0</span>
+      <span class="release__name">Open Source Release</span>
+      <span class="release__badge badge--latest">Latest</span>
+    </div>
+    <div class="release__date">2026-04-08</div>
+
+    <div class="release__section">
+      <div class="release__section-title">Added</div>
+      <ul class="release__list">
+        <li>Auto-generated session titles &mdash; untitled CLI sessions get 3-5 word titles via Haiku in the background, throttled to 3 concurrent generations with dedup</li>
+        <li>Session search/filter &mdash; case-insensitive search in sidebar by title, first prompt, or session ID</li>
+        <li>Graceful error states &mdash; pulsing reconnection banner when gateway disconnects, styled error blocks in chat, CLI-not-found install instructions</li>
+        <li><code>stripInternalTags()</code> &mdash; cleans Claude Code's internal XML tags from session previews, extracts slash command names</li>
+        <li>MIT LICENSE file</li>
+        <li>README.md with architecture diagram, quick start, and development commands</li>
+        <li>Release plan living doc (<code>release.html</code>)</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Changed</div>
+      <ul class="release__list">
+        <li>Version bumped to 1.0.0 &mdash; removed <code>"private": true</code>, added description, author, license, repository, keywords</li>
+        <li>Test count: 279 &rarr; 310 across 14 test files</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- v0.7.0 -->
+  <div class="release release--stable">
     <div class="release__head">
       <span class="release__version">v0.7.0</span>
       <span class="release__name">Live Stats &amp; JSONL Recovery</span>
-      <span class="release__badge badge--latest">Latest</span>
+      <span class="release__badge badge--stable">Phase 2.5</span>
     </div>
     <div class="release__date">2026-04-02</div>
 
@@ -399,7 +430,7 @@
     </div>
   </div>
 
-  <p class="updated">Last updated: 2026-04-02</p>
+  <p class="updated">Last updated: 2026-04-08</p>
 
 </div>
 </body>
