@@ -70,6 +70,7 @@ vi.mock("../../gateway/services/session-store.ts", () => ({
   getSessionMessages: vi.fn().mockResolvedValue(null),
   getSessionTranscript: vi.fn().mockResolvedValue(null),
   renameSession: vi.fn().mockResolvedValue(true),
+  cleanErrorTitles: vi.fn().mockResolvedValue(0),
 }));
 
 // ── Imports (after all vi.mock calls) ───────────────────────────────────

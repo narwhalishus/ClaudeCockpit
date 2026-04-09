@@ -17,7 +17,7 @@ export const AGENT_PROMPT_PREVIEW_CHARS = 200;
 /** Timeout (ms) before SIGKILL after SIGTERM when aborting a process */
 export const PROCESS_KILL_TIMEOUT_MS = 5_000;
 /** Model to use for cheap title generation */
-export const TITLE_GENERATION_MODEL = "claude-haiku-4-5-20251001";
+export const TITLE_GENERATION_MODEL = "haiku";
 /** Max concurrent title generation processes */
 export const MAX_CONCURRENT_TITLE_GENERATIONS = 3;
 /** Max chars for user messages in the compact transcript */

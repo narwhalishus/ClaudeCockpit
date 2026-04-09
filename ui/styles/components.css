@@ -820,12 +820,32 @@
   word-break: break-word;
 }
 
-/* User messages: plain text, preserve whitespace */
-.chat__msg--user .chat__msg-content {
-  white-space: pre-wrap;
+/* ── Slash command notices (collapsed command sequences) ── */
+
+.chat__msg--slash-command {
+  align-self: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
-/* ── Markdown rendering (assistant messages) ── */
+.chat__slash-command-name {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.chat__slash-command-response {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Markdown rendering ── */
 
 .markdown-body {
   font-size: 13px;
@@ -1196,58 +1216,6 @@
 
 .chat__tool-name {
   color: var(--text);
-}
-
-/* ── Structured user messages (slash command XML) ── */
-
-.chat__user-command {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.chat__user-command-name {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: var(--mono);
-  color: var(--accent);
-  background: var(--accent-subtle);
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  letter-spacing: 0.02em;
-}
-
-.chat__user-command-args {
-  font-size: 12px;
-  color: var(--muted);
-  font-family: var(--mono);
-}
-
-.chat__user-stdout {
-  margin: 6px 0 4px;
-  padding: 10px 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text);
-  overflow-x: auto;
-  max-height: 200px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.chat__user-caveat {
-  display: block;
-  font-size: 12px;
-  font-style: italic;
-  color: var(--muted);
-  margin-top: 4px;
 }
 
 /* ── Cursor + Input ── */

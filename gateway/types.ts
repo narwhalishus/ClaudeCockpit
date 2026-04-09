@@ -125,6 +125,10 @@ export interface ChatMessage {
   agents?: AgentBlock[];
   /** Tool uses (non-agent) within this assistant message */
   tools?: ToolBlock[];
+  /** True when this message represents a collapsed slash command sequence */
+  isSlashCommand?: boolean;
+  /** System response text from the slash command (e.g. "Effort set to max") */
+  slashCommandResponse?: string;
 }
 
 export interface AgentBlock {

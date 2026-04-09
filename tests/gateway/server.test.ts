@@ -47,6 +47,7 @@ vi.mock("../../gateway/services/session-store.ts", () => ({
   }),
   getSessionTranscript: vi.fn().mockResolvedValue("transcript text"),
   renameSession: vi.fn().mockResolvedValue(true),
+  cleanErrorTitles: vi.fn().mockResolvedValue(0),
 }));
 
 // ── Mock claude-cli ───────────────────────────────────────────────────────
@@ -531,7 +532,7 @@ describe("batch title generation on sessions.list", () => {
     // Give async batch time to start
     await new Promise((r) => setTimeout(r, 50));
     // Should only generate for s1 (untitled), not s2 (already has title)
-    expect(vi.mocked(generateTitle)).toHaveBeenCalledWith("Hello", "claude-haiku-4-5-20251001");
+    expect(vi.mocked(generateTitle)).toHaveBeenCalledWith("Hello", "haiku");
     expect(vi.mocked(generateTitle)).not.toHaveBeenCalledWith("World", expect.anything());
   });
 

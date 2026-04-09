@@ -372,6 +372,10 @@ export async function generateTitle(firstPrompt: string, model?: string): Promis
 
     proc.on("result", (data: Record<string, unknown>) => {
       clearTimeout(timeout);
+      if (data.subtype !== "success") {
+        resolve(null);
+        return;
+      }
       const result = (data.result as string ?? "").trim().slice(0, TITLE_MAX_LENGTH);
       resolve(result || null);
     });

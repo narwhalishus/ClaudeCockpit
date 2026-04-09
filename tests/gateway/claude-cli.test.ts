@@ -4,7 +4,23 @@
  * Tests the pure logic without spawning real processes.
  */
 import { describe, it, expect, vi } from "vitest";
-import { ClaudeProcess } from "../../gateway/services/claude-cli.ts";
+import { PassThrough } from "node:stream";
+import { EventEmitter } from "node:events";
+
+// Mock spawn — existing tests don't call start() so this is inert for them.
+// Only generateTitle tests use it.
+const { mockSpawnFn } = vi.hoisted(() => ({
+  mockSpawnFn: { current: ((..._args: unknown[]) => ({})) as (...args: unknown[]) => unknown },
+}));
+
+vi.mock("node:child_process", () => {
+  const m = {
+    spawn: (...args: unknown[]) => mockSpawnFn.current(...args),
+  };
+  return { ...m, default: m };
+});
+
+import { ClaudeProcess, generateTitle } from "../../gateway/services/claude-cli.ts";
 
 describe("ClaudeProcess.buildArgs", () => {
   it("includes stream-json input and default permission mode when interactive", () => {
@@ -394,5 +410,68 @@ describe("ClaudeProcess.writeControlResponse", () => {
 
     // pendingApproval is NOT cleared when write fails (returns false)
     // This is correct — we only clear on successful write
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateTitle — error subtype handling
+// ---------------------------------------------------------------------------
+
+function createMockProc() {
+  const proc = new EventEmitter() as EventEmitter & {
+    stdin: PassThrough;
+    stdout: PassThrough;
+    stderr: PassThrough;
+    killed: boolean;
+    kill: ReturnType<typeof vi.fn>;
+  };
+  proc.stdin = new PassThrough();
+  proc.stdout = new PassThrough();
+  proc.stderr = new PassThrough();
+  proc.killed = false;
+  proc.kill = vi.fn();
+  return proc;
+}
+
+describe("generateTitle", () => {
+  it("returns null when result subtype is error", async () => {
+    const mockProc = createMockProc();
+    mockSpawnFn.current = () => mockProc;
+
+    const titlePromise = generateTitle("Fix the login bug");
+
+    // Simulate Claude CLI returning an error result
+    process.nextTick(() => {
+      mockProc.stdout.push(
+        JSON.stringify({
+          type: "result",
+          subtype: "error",
+          result: "API Error 400: Invalid model name",
+        }) + "\n"
+      );
+      mockProc.emit("close", 1);
+    });
+
+    expect(await titlePromise).toBeNull();
+  });
+
+  it("returns title when result subtype is success", async () => {
+    const mockProc = createMockProc();
+    mockSpawnFn.current = () => mockProc;
+
+    const titlePromise = generateTitle("Fix the login bug");
+
+    process.nextTick(() => {
+      mockProc.stdout.push(
+        JSON.stringify({
+          type: "result",
+          subtype: "success",
+          result: "Login Bug Fix",
+        }) + "\n"
+      );
+      mockProc.emit("close", 0);
+    });
+
+    expect(await titlePromise).toBe("Login Bug Fix");
   });
 });

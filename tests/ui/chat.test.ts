@@ -61,7 +61,7 @@ describe("cockpit-chat markdown rendering", () => {
     expect(code!.textContent).toContain("const x = 1;");
   });
 
-  it("renders user messages as plain text without markdown-body", async () => {
+  it("renders user messages as markdown with .markdown-body wrapper", async () => {
     const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
@@ -76,19 +76,19 @@ describe("cockpit-chat markdown rendering", () => {
       ],
     });
 
-    // User messages should NOT have markdown-body
-    const markdownBody = el.querySelector(".markdown-body");
-    expect(markdownBody).toBeNull();
+    // User messages now get markdown rendering
+    const markdownBody = el.querySelector(".chat__msg--user .markdown-body");
+    expect(markdownBody).not.toBeNull();
 
-    // Should render as plain text (the raw markdown characters visible)
-    const msgContent = el.querySelector(".chat__msg--user .chat__msg-content");
-    expect(msgContent).not.toBeNull();
-    expect(msgContent!.textContent).toContain("**bug**");
+    // **bug** should render as <strong>
+    const strong = markdownBody!.querySelector("strong");
+    expect(strong).not.toBeNull();
+    expect(strong!.textContent).toBe("bug");
   });
 
-  // ── Structured user messages (slash command XML) ──
+  // ── Slash command rendering (collapsed by gateway) ──
 
-  it("renders <command-name> as a colored pill badge", async () => {
+  it("renders isSlashCommand messages as compact notices", async () => {
     const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
@@ -97,63 +97,50 @@ describe("cockpit-chat markdown rendering", () => {
         {
           uuid: "u-cmd",
           role: "user",
-          content: "<command-name>plan</command-name><command-args>implement auth</command-args>",
+          content: "/plan implement auth",
           timestamp: new Date().toISOString(),
+          isSlashCommand: true,
+          slashCommandResponse: "Plan mode enabled",
         },
       ],
     });
 
-    const pill = el.querySelector(".chat__user-command-name");
-    expect(pill).not.toBeNull();
-    expect(pill!.textContent).toContain("/plan");
+    const notice = el.querySelector(".chat__msg--slash-command");
+    expect(notice).not.toBeNull();
 
-    const args = el.querySelector(".chat__user-command-args");
-    expect(args).not.toBeNull();
-    expect(args!.textContent).toContain("implement auth");
+    const name = el.querySelector(".chat__slash-command-name");
+    expect(name).not.toBeNull();
+    expect(name!.textContent).toContain("/plan implement auth");
+
+    const response = el.querySelector(".chat__slash-command-response");
+    expect(response).not.toBeNull();
+    expect(response!.textContent).toContain("Plan mode enabled");
   });
 
-  it("renders <local-command-stdout> as a monospace code block", async () => {
+  it("renders slash command without response", async () => {
     const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
     await setProps(el, {
       messages: [
         {
-          uuid: "u-stdout",
+          uuid: "u-cmd2",
           role: "user",
-          content: "<command-name>mcp</command-name><local-command-stdout>Server: playwright\nStatus: connected</local-command-stdout>",
+          content: "/help",
           timestamp: new Date().toISOString(),
+          isSlashCommand: true,
         },
       ],
     });
 
-    const stdout = el.querySelector(".chat__user-stdout");
-    expect(stdout).not.toBeNull();
-    expect(stdout!.textContent).toContain("Server: playwright");
-    expect(stdout!.tagName).toBe("PRE");
+    const notice = el.querySelector(".chat__msg--slash-command");
+    expect(notice).not.toBeNull();
+
+    const response = el.querySelector(".chat__slash-command-response");
+    expect(response).toBeNull();
   });
 
-  it("renders <local-command-caveat> as muted italic text", async () => {
-    const el = document.createElement("cockpit-chat") as CockpitChat;
-    await renderEl(el);
-
-    await setProps(el, {
-      messages: [
-        {
-          uuid: "u-caveat",
-          role: "user",
-          content: "<command-name>help</command-name><local-command-caveat>Some features require configuration</local-command-caveat>",
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    });
-
-    const caveat = el.querySelector(".chat__user-caveat");
-    expect(caveat).not.toBeNull();
-    expect(caveat!.textContent).toContain("Some features require configuration");
-  });
-
-  it("renders plain user text without XML tags normally", async () => {
+  it("does not render slash command elements for normal user messages", async () => {
     const el = document.createElement("cockpit-chat") as CockpitChat;
     await renderEl(el);
 
@@ -168,35 +155,10 @@ describe("cockpit-chat markdown rendering", () => {
       ],
     });
 
-    // No structured elements
-    expect(el.querySelector(".chat__user-command")).toBeNull();
-    expect(el.querySelector(".chat__user-stdout")).toBeNull();
-    expect(el.querySelector(".chat__user-caveat")).toBeNull();
+    expect(el.querySelector(".chat__msg--slash-command")).toBeNull();
 
     const msgContent = el.querySelector(".chat__msg--user .chat__msg-content");
     expect(msgContent!.textContent).toContain("Just a normal message");
-  });
-
-  it("renders mixed content: command + stdout + trailing text", async () => {
-    const el = document.createElement("cockpit-chat") as CockpitChat;
-    await renderEl(el);
-
-    await setProps(el, {
-      messages: [
-        {
-          uuid: "u-mixed",
-          role: "user",
-          content: "<command-name>mcp</command-name><local-command-stdout>output here</local-command-stdout>Some trailing text",
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    });
-
-    expect(el.querySelector(".chat__user-command-name")).not.toBeNull();
-    expect(el.querySelector(".chat__user-stdout")).not.toBeNull();
-    // Trailing text should still be present
-    const content = el.querySelector(".chat__msg--user .chat__msg-content");
-    expect(content!.textContent).toContain("trailing text");
   });
 
   it("renders lists as <ul>/<li>", async () => {

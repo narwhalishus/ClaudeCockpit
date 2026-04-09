@@ -1,4 +1,4 @@
-import { readdir, readFile, stat, appendFile } from "node:fs/promises";
+import { readdir, readFile, writeFile, stat, appendFile } from "node:fs/promises";
 import { join, basename } from "node:path";
 import { homedir } from "node:os";
 import type {
@@ -126,7 +126,8 @@ export function stripInternalTags(text: string): string {
 export function summarizeSession(
   lines: RawSessionLine[],
   projectId: string,
-  projectPath: string
+  projectPath: string,
+  filenameSessionId?: string
 ): SessionSummary | null {
   // Filter to actual user/assistant messages (not snapshots, not sidechain)
   const messages = lines.filter(
@@ -199,7 +200,7 @@ export function summarizeSession(
   }
 
   const summary: SessionSummary = {
-    sessionId: firstMsg.sessionId ?? basename(projectPath),
+    sessionId: filenameSessionId ?? firstMsg.sessionId ?? basename(projectPath),
     projectId,
     projectPath: decodeProjectPath(projectId),
     cwd: firstMsg.cwd ?? "",
@@ -301,9 +302,10 @@ export async function listSessions(
     const jsonlFiles = files.filter((f) => f.endsWith(".jsonl"));
 
     for (const file of jsonlFiles) {
+      const filenameId = file.replace(/\.jsonl$/, "");
       try {
         const lines = await parseJsonlFile(join(dirPath, file));
-        const summary = summarizeSession(lines, dir, decodeProjectPath(dir));
+        const summary = summarizeSession(lines, dir, decodeProjectPath(dir), filenameId);
         if (summary) {
           sessions.push(summary);
         }
@@ -675,7 +677,72 @@ export function convertToMessages(lines: RawSessionLine[]): ChatMessage[] {
   // Merge tool-only assistant messages into the preceding assistant bubble.
   // A "tool-only" message has no meaningful text — just tool/agent blocks.
   // This collapses rapid tool-call round-trips into one conversation bubble.
-  return consolidateMessages(messages);
+  // Then collapse slash command sequences into single compact notices.
+  return collapseSlashCommands(consolidateMessages(messages));
+}
+
+// ---------------------------------------------------------------------------
+// Slash command collapsing
+// ---------------------------------------------------------------------------
+
+const COMMAND_TAG_RE = /<(command-name|command-args|command-message|local-command-caveat|local-command-stdout)>/;
+
+/** Check if a user message contains Claude Code's internal command XML tags */
+export function isCommandRelated(content: string): boolean {
+  return COMMAND_TAG_RE.test(content);
+}
+
+/**
+ * Collapse consecutive slash-command user messages into a single compact notice.
+ *
+ * Claude Code writes slash commands as 2-3 user JSONL lines:
+ *   1. A caveat preamble (<local-command-caveat>)
+ *   2. The command itself (<command-name>, <command-args>)
+ *   3. A plain-text system response (e.g. "Effort set to max")
+ *
+ * This collapses them into one ChatMessage with isSlashCommand: true,
+ * the clean command as content, and the response in slashCommandResponse.
+ */
+export function collapseSlashCommands(messages: ChatMessage[]): ChatMessage[] {
+  const result: ChatMessage[] = [];
+  let i = 0;
+  while (i < messages.length) {
+    const msg = messages[i];
+    if (msg.role === "user" && isCommandRelated(msg.content)) {
+      // Scan forward to collect the full command sequence
+      let commandText = "";
+      let response = "";
+      let lastTimestamp = msg.timestamp;
+      while (i < messages.length && messages[i].role === "user") {
+        const cur = messages[i];
+        if (isCommandRelated(cur.content)) {
+          const stripped = stripInternalTags(cur.content);
+          if (stripped && !commandText) commandText = stripped;
+        } else if (!commandText) {
+          break; // not part of a command sequence
+        } else {
+          response = cur.content.trim(); // plain text = system response
+          lastTimestamp = cur.timestamp;
+          i++;
+          break;
+        }
+        lastTimestamp = cur.timestamp;
+        i++;
+      }
+      result.push({
+        uuid: msg.uuid,
+        role: "user",
+        content: commandText || "/command",
+        timestamp: lastTimestamp,
+        isSlashCommand: true,
+        ...(response && { slashCommandResponse: response }),
+      });
+      continue;
+    }
+    result.push(msg);
+    i++;
+  }
+  return result;
 }
 
 /** Merge tool-only assistant messages into the previous assistant message */
@@ -798,6 +865,66 @@ export async function getSessionTranscript(
   const lines = await parseJsonlFile(found.filePath);
   const messages = convertToMessages(lines);
   return buildTranscript(messages, maxChars);
+}
+
+/**
+ * One-time cleanup: remove custom-title lines containing API error messages.
+ * These were written by a bug where generateTitle() didn't check for error subtypes.
+ * Rewrites affected JSONL files in place, preserving all other lines.
+ */
+export async function cleanErrorTitles(): Promise<number> {
+  const projectDirs = await getProjectDirs();
+  let cleaned = 0;
+
+  for (const dir of projectDirs) {
+    const dirPath = join(PROJECTS_DIR, dir);
+    let files: string[];
+    try {
+      files = await readdir(dirPath);
+    } catch {
+      continue;
+    }
+
+    for (const file of files.filter((f) => f.endsWith(".jsonl"))) {
+      const filePath = join(dirPath, file);
+      try {
+        const content = await readFile(filePath, "utf-8");
+        const rawLines = content.split("\n");
+        let modified = false;
+
+        const kept = rawLines.filter((line) => {
+          const trimmed = line.trim();
+          if (!trimmed) return true;
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (
+              parsed.type === "custom-title" &&
+              typeof parsed.customTitle === "string" &&
+              parsed.customTitle.includes("API Error")
+            ) {
+              modified = true;
+              return false;
+            }
+          } catch {
+            // Not valid JSON — keep the line
+          }
+          return true;
+        });
+
+        if (modified) {
+          await writeFile(filePath, kept.join("\n"));
+          cleaned++;
+        }
+      } catch (err) {
+        console.warn(`cleanErrorTitles: failed to process ${filePath}:`, err);
+      }
+    }
+  }
+
+  if (cleaned > 0) {
+    console.log(`cleanErrorTitles: cleaned ${cleaned} file(s)`);
+  }
+  return cleaned;
 }
 
 /**

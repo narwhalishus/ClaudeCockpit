@@ -4,16 +4,32 @@
  * These test the pure data-transformation functions (decodeProjectPath,
  * extractText, summarizeSession) without touching the filesystem.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+// Mock fs — only affects cleanErrorTitles tests. Pure function tests don't call fs.
+const { mockFs } = vi.hoisted(() => ({
+  mockFs: {
+    readdir: vi.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    stat: vi.fn(),
+    appendFile: vi.fn(),
+  },
+}));
+
+vi.mock("node:fs/promises", () => ({ ...mockFs, default: mockFs }));
+
 import {
   decodeProjectPath,
   extractText,
   summarizeSession,
   consolidateMessages,
+  collapseSlashCommands,
+  isCommandRelated,
   computeOverviewStats,
   buildTranscript,
   splitConcatenatedJson,
   stripInternalTags,
+  cleanErrorTitles,
 } from "../../gateway/services/session-store.ts";
 import type { RawSessionLine, SessionSummary } from "../../gateway/types.ts";
 import type { ChatMessage } from "../../gateway/types.ts";
@@ -349,6 +365,20 @@ describe("summarizeSession", () => {
     const result = summarizeSession(lines, "proj", "/proj");
 
     expect(result!.customTitle).toBeUndefined();
+  });
+
+  it("uses filenameSessionId when provided (always preferred)", () => {
+    const lines = [userLine(), assistantLine()];
+    const result = summarizeSession(lines, "proj", "/proj", "filename-uuid");
+
+    expect(result!.sessionId).toBe("filename-uuid");
+  });
+
+  it("falls back to firstMsg.sessionId when filenameSessionId is not provided", () => {
+    const lines = [userLine(), assistantLine()];
+    const result = summarizeSession(lines, "proj", "/proj");
+
+    expect(result!.sessionId).toBe("sess-1");
   });
 
   it("skips synthetic model names and picks the first real model", () => {
@@ -752,5 +782,209 @@ describe("stripInternalTags", () => {
     expect(
       stripInternalTags("<system-reminder>all internal</system-reminder>")
     ).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isCommandRelated
+// ---------------------------------------------------------------------------
+
+describe("isCommandRelated", () => {
+  it("detects command-name tags", () => {
+    expect(isCommandRelated("<command-name>effort</command-name>")).toBe(true);
+  });
+
+  it("detects local-command-caveat tags", () => {
+    expect(isCommandRelated("<local-command-caveat>warning</local-command-caveat>")).toBe(true);
+  });
+
+  it("detects local-command-stdout tags", () => {
+    expect(isCommandRelated("<local-command-stdout>output</local-command-stdout>")).toBe(true);
+  });
+
+  it("returns false for plain text", () => {
+    expect(isCommandRelated("Fix the bug")).toBe(false);
+  });
+
+  it("returns false for unrelated XML tags", () => {
+    expect(isCommandRelated("<div>not a command</div>")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// collapseSlashCommands
+// ---------------------------------------------------------------------------
+
+describe("collapseSlashCommands", () => {
+  it("collapses a caveat + command + response into a single message", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "u1", role: "user", content: "<local-command-caveat>Note: this is local</local-command-caveat>" }),
+      chatMsg({ uuid: "u2", role: "user", content: "<command-name>effort</command-name><command-args>max</command-args>" }),
+      chatMsg({ uuid: "u3", role: "user", content: "Effort set to max" }),
+    ];
+    const result = collapseSlashCommands(messages);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].isSlashCommand).toBe(true);
+    expect(result[0].content).toBe("/effort max");
+    expect(result[0].slashCommandResponse).toBe("Effort set to max");
+  });
+
+  it("collapses command without a response", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "u1", role: "user", content: "<command-name>help</command-name>" }),
+    ];
+    const result = collapseSlashCommands(messages);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].isSlashCommand).toBe(true);
+    expect(result[0].content).toBe("/help");
+    expect(result[0].slashCommandResponse).toBeUndefined();
+  });
+
+  it("preserves non-command user messages", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "u1", role: "user", content: "Fix the bug" }),
+      chatMsg({ uuid: "a1", role: "assistant", content: "Done." }),
+    ];
+    const result = collapseSlashCommands(messages);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].isSlashCommand).toBeUndefined();
+    expect(result[0].content).toBe("Fix the bug");
+  });
+
+  it("handles command sequence followed by normal conversation", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "u1", role: "user", content: "<command-name>effort</command-name><command-args>max</command-args>" }),
+      chatMsg({ uuid: "u2", role: "user", content: "Effort set to max" }),
+      chatMsg({ uuid: "u3", role: "user", content: "Now fix the tests" }),
+      chatMsg({ uuid: "a1", role: "assistant", content: "On it." }),
+    ];
+    const result = collapseSlashCommands(messages);
+
+    expect(result).toHaveLength(3);
+    expect(result[0].isSlashCommand).toBe(true);
+    expect(result[0].content).toBe("/effort max");
+    expect(result[0].slashCommandResponse).toBe("Effort set to max");
+    expect(result[1].content).toBe("Now fix the tests");
+    expect(result[1].isSlashCommand).toBeUndefined();
+    expect(result[2].role).toBe("assistant");
+  });
+
+  it("handles multiple command sequences in a conversation", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "u1", role: "user", content: "<command-name>effort</command-name><command-args>max</command-args>" }),
+      chatMsg({ uuid: "u2", role: "user", content: "Effort set to max" }),
+      chatMsg({ uuid: "u3", role: "user", content: "Fix the bug" }),
+      chatMsg({ uuid: "a1", role: "assistant", content: "Done." }),
+      chatMsg({ uuid: "u4", role: "user", content: "<command-name>plan</command-name>" }),
+      chatMsg({ uuid: "u5", role: "user", content: "Plan mode enabled" }),
+    ];
+    const result = collapseSlashCommands(messages);
+
+    expect(result).toHaveLength(4);
+    expect(result[0].isSlashCommand).toBe(true);
+    expect(result[0].content).toBe("/effort max");
+    expect(result[1].content).toBe("Fix the bug");
+    expect(result[2].role).toBe("assistant");
+    expect(result[3].isSlashCommand).toBe(true);
+    expect(result[3].content).toBe("/plan");
+  });
+
+  it("preserves uuid from the first message in the sequence", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "first-uuid", role: "user", content: "<local-command-caveat>caveat</local-command-caveat>" }),
+      chatMsg({ uuid: "second-uuid", role: "user", content: "<command-name>effort</command-name><command-args>max</command-args>" }),
+    ];
+    const result = collapseSlashCommands(messages);
+
+    expect(result[0].uuid).toBe("first-uuid");
+  });
+
+  it("uses timestamp from the last message in the sequence", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "u1", role: "user", content: "<command-name>effort</command-name><command-args>max</command-args>", timestamp: "2026-01-01T10:00:00Z" }),
+      chatMsg({ uuid: "u2", role: "user", content: "Effort set to max", timestamp: "2026-01-01T10:00:01Z" }),
+    ];
+    const result = collapseSlashCommands(messages);
+
+    expect(result[0].timestamp).toBe("2026-01-01T10:00:01Z");
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(collapseSlashCommands([])).toEqual([]);
+  });
+
+  it("does not collapse assistant messages containing command tags", () => {
+    const messages: ChatMessage[] = [
+      chatMsg({ uuid: "a1", role: "assistant", content: "Use <command-name>effort</command-name> to set effort" }),
+    ];
+    const result = collapseSlashCommands(messages);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].isSlashCommand).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// cleanErrorTitles
+// ---------------------------------------------------------------------------
+
+describe("cleanErrorTitles", () => {
+  beforeEach(() => {
+    mockFs.readdir.mockReset();
+    mockFs.readFile.mockReset();
+    mockFs.writeFile.mockReset();
+    mockFs.stat.mockReset();
+  });
+
+  it("removes custom-title lines containing API Error and rewrites file", async () => {
+    let readdirCall = 0;
+    mockFs.readdir.mockImplementation(async () => {
+      readdirCall++;
+      if (readdirCall === 1) return ["proj-a"];     // project dirs
+      if (readdirCall === 2) return ["session1.jsonl"]; // files in project
+      return [];
+    });
+    mockFs.stat.mockResolvedValue({ isDirectory: () => true });
+
+    const lines = [
+      '{"type":"user","message":{"role":"user","content":"hello"},"timestamp":"2026-01-01T00:00:00Z","sessionId":"s1"}',
+      '{"type":"custom-title","customTitle":"API Error 400: model not found","sessionId":"s1"}',
+      '{"type":"custom-title","customTitle":"Good Title","sessionId":"s1"}',
+    ];
+    mockFs.readFile.mockResolvedValue(lines.join("\n"));
+    mockFs.writeFile.mockResolvedValue(undefined);
+
+    const cleaned = await cleanErrorTitles();
+
+    expect(cleaned).toBe(1);
+    expect(mockFs.writeFile).toHaveBeenCalledOnce();
+    const written = mockFs.writeFile.mock.calls[0][1] as string;
+    expect(written).not.toContain("API Error");
+    expect(written).toContain("Good Title");
+    expect(written).toContain('"type":"user"');
+  });
+
+  it("does not rewrite files without error titles", async () => {
+    let readdirCall = 0;
+    mockFs.readdir.mockImplementation(async () => {
+      readdirCall++;
+      if (readdirCall === 1) return ["proj-a"];
+      return ["session1.jsonl"];
+    });
+    mockFs.stat.mockResolvedValue({ isDirectory: () => true });
+
+    const lines = [
+      '{"type":"user","message":{"role":"user","content":"hello"},"timestamp":"2026-01-01T00:00:00Z","sessionId":"s1"}',
+      '{"type":"custom-title","customTitle":"My Good Session","sessionId":"s1"}',
+    ];
+    mockFs.readFile.mockResolvedValue(lines.join("\n"));
+
+    const cleaned = await cleanErrorTitles();
+
+    expect(cleaned).toBe(0);
+    expect(mockFs.writeFile).not.toHaveBeenCalled();
   });
 });

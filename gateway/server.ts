@@ -11,6 +11,7 @@ import {
   getSessionMessages,
   getSessionTranscript,
   renameSession,
+  cleanErrorTitles,
 } from "./services/session-store.ts";
 import { startChat, abortChat, getProcess, generateTitle, type ClaudeProcess } from "./services/claude-cli.ts";
 import { SUMMARY_MAX_BUDGET, TITLE_MAX_LENGTH, TITLE_GENERATION_MODEL, MAX_CONCURRENT_TITLE_GENERATIONS } from "./constants.ts";
@@ -443,4 +444,9 @@ server.listen(PORT, () => {
   console.log(`  HTTP  /api/overview, /api/sessions, /api/projects, /api/health`);
   console.log(`  WS    ws://localhost:${PORT}/ws`);
   console.log(`  Methods: overview.get, sessions.list, projects.list, chat.send, chat.abort`);
+
+  // One-time cleanup: remove error titles written by broken title generation
+  cleanErrorTitles().catch((err) =>
+    console.error("cleanErrorTitles failed:", err)
+  );
 });

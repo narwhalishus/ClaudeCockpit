@@ -66,92 +66,6 @@ function preprocessInsights(src: string): string {
   });
 }
 
-// ── Structured user message rendering ─────────────────────────────────
-// Claude Code wraps slash commands in XML tags. Parse them into styled blocks.
-
-interface UserContentSegment {
-  type: "text" | "command" | "stdout" | "caveat";
-  commandName?: string;
-  commandArgs?: string;
-  content?: string;
-}
-
-const USER_TAG_RE = /<(command-name|command-args|local-command-stdout|local-command-caveat)>([\s\S]*?)<\/\1>/g;
-
-function parseUserContent(text: string): UserContentSegment[] {
-  const segments: UserContentSegment[] = [];
-  let lastIndex = 0;
-  let commandName: string | undefined;
-  let commandArgs: string | undefined;
-
-  // First pass: extract tags and interleaved text
-  const matches = [...text.matchAll(USER_TAG_RE)];
-  for (const m of matches) {
-    // Add any plain text before this tag
-    if (m.index! > lastIndex) {
-      const plain = text.slice(lastIndex, m.index!).trim();
-      if (plain) segments.push({ type: "text", content: plain });
-    }
-
-    const [, tagName, tagContent] = m;
-    switch (tagName) {
-      case "command-name":
-        commandName = tagContent.trim();
-        break;
-      case "command-args":
-        commandArgs = tagContent.trim();
-        break;
-      case "local-command-stdout":
-        segments.push({ type: "stdout", content: tagContent });
-        break;
-      case "local-command-caveat":
-        segments.push({ type: "caveat", content: tagContent.trim() });
-        break;
-    }
-    lastIndex = m.index! + m[0].length;
-  }
-
-  // If we found command-name/args, emit a command segment at the front
-  if (commandName) {
-    segments.unshift({ type: "command", commandName, commandArgs });
-  }
-
-  // Trailing plain text
-  if (lastIndex < text.length) {
-    const trailing = text.slice(lastIndex).trim();
-    if (trailing) segments.push({ type: "text", content: trailing });
-  }
-
-  return segments;
-}
-
-function renderUserContent(text: string) {
-  // Quick path: no XML tags → plain text
-  if (!text.includes("<command-name") && !text.includes("<local-command-")) {
-    return text.trim();
-  }
-
-  const segments = parseUserContent(text);
-  if (segments.length === 0) return text.trim();
-
-  return segments.map((seg) => {
-    switch (seg.type) {
-      case "command":
-        return html`<span class="chat__user-command">
-          <span class="chat__user-command-name">/${seg.commandName}</span>${seg.commandArgs
-            ? html`<span class="chat__user-command-args">${seg.commandArgs}</span>`
-            : nothing}
-        </span>`;
-      case "stdout":
-        return html`<pre class="chat__user-stdout">${seg.content}</pre>`;
-      case "caveat":
-        return html`<span class="chat__user-caveat">${seg.content}</span>`;
-      default:
-        return html`<span>${seg.content}</span>`;
-    }
-  });
-}
-
 // ── Per-tool visual styling ───────────────────────────────────────────
 
 interface ToolVisual {
@@ -1129,11 +1043,23 @@ export class CockpitChat extends LitElement {
       `;
     }
 
+    // Slash commands render as compact centered notices
+    if (msg.isSlashCommand) {
+      return html`
+        <div class="chat__msg chat__msg--slash-command">
+          <span class="chat__slash-command-name">${msg.content}</span>
+          ${msg.slashCommandResponse
+            ? html`<span class="chat__slash-command-response">${msg.slashCommandResponse}</span>`
+            : nothing}
+        </div>
+      `;
+    }
+
     const isAssistant = msg.role === "assistant";
     const content = msg.content
-      ? isAssistant
-        ? html`<div class="markdown-body">${unsafeHTML(sanitizeHtml(md.parse(preprocessInsights(msg.content)) as string))}</div>`
-        : renderUserContent(msg.content)
+      ? html`<div class="markdown-body">${unsafeHTML(sanitizeHtml(md.parse(
+          isAssistant ? preprocessInsights(msg.content) : msg.content
+        ) as string))}</div>`
       : msg.streaming
         ? html`<span class="chat__cursor"></span>`
         : "";

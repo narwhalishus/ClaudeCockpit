@@ -101,6 +101,10 @@ export interface ChatMessage {
   tools?: ToolBlock[];
   /** Client-only: message is still being streamed */
   streaming?: boolean;
+  /** True when this message represents a collapsed slash command sequence */
+  isSlashCommand?: boolean;
+  /** System response text from the slash command (e.g. "Effort set to max") */
+  slashCommandResponse?: string;
 }
 
 export interface AgentBlock {
