@@ -100,6 +100,28 @@ export function extractText(
   return "";
 }
 
+/** Strip Claude Code's internal XML tags from text for use in previews.
+ *  Extracts slash command name/args into a clean prefix, then removes
+ *  all hyphenated XML tag pairs (Claude Code's internal tags all use
+ *  hyphenated names like command-name, system-reminder, etc.) */
+export function stripInternalTags(text: string): string {
+  // Extract slash command prefix: <command-name>foo</command-name> → /foo
+  let prefix = "";
+  const cmdMatch = text.match(/<command-name>([\s\S]*?)<\/command-name>/);
+  if (cmdMatch) {
+    const name = cmdMatch[1].trim();
+    const argsMatch = text.match(/<command-args>([\s\S]*?)<\/command-args>/);
+    prefix = argsMatch ? `/${name} ${argsMatch[1].trim()}` : `/${name}`;
+  }
+
+  // Strip all hyphenated XML tag pairs and their content
+  const stripped = text.replace(/<[a-z][\w]*-[\w-]*>[\s\S]*?<\/[a-z][\w]*-[\w-]*>/g, "");
+
+  // Collapse whitespace
+  const body = stripped.replace(/\s+/g, " ").trim();
+  return prefix && body ? `${prefix} — ${body}` : prefix || body;
+}
+
 /** Aggregate a parsed JSONL file into a session summary */
 export function summarizeSession(
   lines: RawSessionLine[],
@@ -160,7 +182,7 @@ export function summarizeSession(
   let firstPrompt = "";
   for (const m of messages) {
     if (m.type !== "user" || !m.message?.content) continue;
-    const text = extractText(m.message.content).trim();
+    const text = stripInternalTags(extractText(m.message.content));
     // Skip tool results and system interrupts
     if (text && !text.startsWith("[Request interrupted")) {
       firstPrompt = text.slice(0, 200);

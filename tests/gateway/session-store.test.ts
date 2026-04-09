@@ -13,6 +13,7 @@ import {
   computeOverviewStats,
   buildTranscript,
   splitConcatenatedJson,
+  stripInternalTags,
 } from "../../gateway/services/session-store.ts";
 import type { RawSessionLine, SessionSummary } from "../../gateway/types.ts";
 import type { ChatMessage } from "../../gateway/types.ts";
@@ -680,5 +681,76 @@ describe("buildTranscript", () => {
     const result = buildTranscript(messages);
 
     expect(result).toContain("[tools: Agent(find test files)]");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stripInternalTags
+// ---------------------------------------------------------------------------
+describe("stripInternalTags", () => {
+  it("passes plain text through unchanged", () => {
+    expect(stripInternalTags("Fix the bug in app.ts")).toBe("Fix the bug in app.ts");
+  });
+
+  it("extracts command-name as slash prefix", () => {
+    expect(
+      stripInternalTags("<command-name>effort</command-name><command-args>max</command-args>")
+    ).toBe("/effort max");
+  });
+
+  it("extracts command-name without args", () => {
+    expect(stripInternalTags("<command-name>help</command-name>")).toBe("/help");
+  });
+
+  it("combines command prefix with trailing text", () => {
+    expect(
+      stripInternalTags(
+        "<command-name>effort</command-name><command-args>max</command-args> do the thing"
+      )
+    ).toBe("/effort max — do the thing");
+  });
+
+  it("strips local-command-stdout", () => {
+    expect(
+      stripInternalTags("hello <local-command-stdout>output here</local-command-stdout> world")
+    ).toBe("hello world");
+  });
+
+  it("strips local-command-caveat", () => {
+    expect(
+      stripInternalTags("<local-command-caveat>warning text</local-command-caveat>run this")
+    ).toBe("run this");
+  });
+
+  it("strips system-reminder", () => {
+    expect(
+      stripInternalTags("msg <system-reminder>long reminder</system-reminder>")
+    ).toBe("msg");
+  });
+
+  it("strips available-deferred-tools", () => {
+    expect(
+      stripInternalTags("<available-deferred-tools>tool1\ntool2</available-deferred-tools>prompt")
+    ).toBe("prompt");
+  });
+
+  it("strips multiple tags and preserves plain text", () => {
+    expect(
+      stripInternalTags(
+        "<system-reminder>stuff</system-reminder>Please fix <local-command-caveat>caveat</local-command-caveat>the bug"
+      )
+    ).toBe("Please fix the bug");
+  });
+
+  it("collapses extra whitespace after stripping", () => {
+    expect(
+      stripInternalTags("hello   <local-command-stdout>x</local-command-stdout>   world")
+    ).toBe("hello world");
+  });
+
+  it("returns empty string when only tags present", () => {
+    expect(
+      stripInternalTags("<system-reminder>all internal</system-reminder>")
+    ).toBe("");
   });
 });
