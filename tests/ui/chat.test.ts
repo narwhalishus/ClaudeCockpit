@@ -1267,3 +1267,113 @@ describe("cockpit-chat localStorage resilience", () => {
     expect((el as any).pinnedSessionIds.size).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Session search / filter
+// ---------------------------------------------------------------------------
+
+describe("cockpit-chat session search", () => {
+  beforeEach(() => {
+    document.body.textContent = "";
+  });
+
+  it("renders a search input in the sidebar", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      sessions: [],
+      sidebarOpen: true,
+    });
+
+    const input = el.querySelector(".chat__search-input");
+    expect(input).not.toBeNull();
+    expect(input?.getAttribute("placeholder")).toBe("Search sessions...");
+  });
+
+  it("filters sessions by customTitle", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      sessions: [
+        { sessionId: "s1", customTitle: "Fix Login Bug", firstPrompt: "fix the login", lastMessageAt: new Date().toISOString(), model: "claude-sonnet-4-6", messageCount: 5, projectId: "p1", projectPath: "/test", cwd: "/test", startedAt: new Date().toISOString(), version: "1", totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadTokens: 0, totalCacheCreationTokens: 0 },
+        { sessionId: "s2", customTitle: "Add Tests", firstPrompt: "write tests for", lastMessageAt: new Date().toISOString(), model: "claude-sonnet-4-6", messageCount: 3, projectId: "p1", projectPath: "/test", cwd: "/test", startedAt: new Date().toISOString(), version: "1", totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadTokens: 0, totalCacheCreationTokens: 0 },
+      ],
+      sidebarOpen: true,
+    });
+
+    // Both sessions visible initially
+    let items = el.querySelectorAll(".chat__session-item");
+    expect(items.length).toBe(2);
+
+    // Type search query
+    await setProps(el, { searchQuery: "login" });
+    items = el.querySelectorAll(".chat__session-item");
+    expect(items.length).toBe(1);
+    expect(items[0].querySelector(".chat__session-item-title")?.textContent).toContain("Fix Login Bug");
+  });
+
+  it("filters sessions by firstPrompt when no customTitle match", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      sessions: [
+        { sessionId: "s1", firstPrompt: "refactor the auth module", lastMessageAt: new Date().toISOString(), model: "claude-sonnet-4-6", messageCount: 2, projectId: "p1", projectPath: "/test", cwd: "/test", startedAt: new Date().toISOString(), version: "1", totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadTokens: 0, totalCacheCreationTokens: 0 },
+        { sessionId: "s2", firstPrompt: "add dark mode", lastMessageAt: new Date().toISOString(), model: "claude-sonnet-4-6", messageCount: 1, projectId: "p1", projectPath: "/test", cwd: "/test", startedAt: new Date().toISOString(), version: "1", totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadTokens: 0, totalCacheCreationTokens: 0 },
+      ],
+      sidebarOpen: true,
+    });
+
+    await setProps(el, { searchQuery: "auth" });
+    const items = el.querySelectorAll(".chat__session-item");
+    expect(items.length).toBe(1);
+  });
+
+  it("shows 'No matching sessions' when search has no results", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      sessions: [
+        { sessionId: "s1", firstPrompt: "hello", lastMessageAt: new Date().toISOString(), model: "claude-sonnet-4-6", messageCount: 1, projectId: "p1", projectPath: "/test", cwd: "/test", startedAt: new Date().toISOString(), version: "1", totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadTokens: 0, totalCacheCreationTokens: 0 },
+      ],
+      sidebarOpen: true,
+    });
+
+    await setProps(el, { searchQuery: "xyznonexistent" });
+    const empty = el.querySelector(".chat__sidebar-empty");
+    expect(empty).not.toBeNull();
+    expect(empty?.textContent).toContain("No matching sessions");
+  });
+
+  it("is case-insensitive", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      sessions: [
+        { sessionId: "s1", customTitle: "Fix Login Bug", firstPrompt: "fix", lastMessageAt: new Date().toISOString(), model: "claude-sonnet-4-6", messageCount: 1, projectId: "p1", projectPath: "/test", cwd: "/test", startedAt: new Date().toISOString(), version: "1", totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadTokens: 0, totalCacheCreationTokens: 0 },
+      ],
+      sidebarOpen: true,
+    });
+
+    await setProps(el, { searchQuery: "LOGIN" });
+    const items = el.querySelectorAll(".chat__session-item");
+    expect(items.length).toBe(1);
+  });
+
+  it("clears filter when search is emptied", async () => {
+    const el = document.createElement("cockpit-chat") as CockpitChat;
+    await renderEl(el);
+    await setProps(el, {
+      sessions: [
+        { sessionId: "s1", firstPrompt: "hello", lastMessageAt: new Date().toISOString(), model: "claude-sonnet-4-6", messageCount: 1, projectId: "p1", projectPath: "/test", cwd: "/test", startedAt: new Date().toISOString(), version: "1", totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadTokens: 0, totalCacheCreationTokens: 0 },
+        { sessionId: "s2", firstPrompt: "world", lastMessageAt: new Date().toISOString(), model: "claude-sonnet-4-6", messageCount: 1, projectId: "p1", projectPath: "/test", cwd: "/test", startedAt: new Date().toISOString(), version: "1", totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadTokens: 0, totalCacheCreationTokens: 0 },
+      ],
+      sidebarOpen: true,
+    });
+
+    await setProps(el, { searchQuery: "hello" });
+    expect(el.querySelectorAll(".chat__session-item").length).toBe(1);
+
+    await setProps(el, { searchQuery: "" });
+    expect(el.querySelectorAll(".chat__session-item").length).toBe(2);
+  });
+});
