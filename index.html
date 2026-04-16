@@ -2,6 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      try { const s = JSON.parse(localStorage.getItem('cockpit-settings') || '{}');
+      if (s.theme) document.documentElement.setAttribute('data-theme', s.theme);
+      } catch {}
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ClaudeCockpit</title>
     <link rel="icon" href="/favicon.ico" />

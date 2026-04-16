@@ -143,7 +143,7 @@
       <span class="release__name">Open Source Release</span>
       <span class="release__badge badge--latest">Latest</span>
     </div>
-    <div class="release__date">2026-04-08</div>
+    <div class="release__date">2026-04-12</div>
 
     <div class="release__section">
       <div class="release__section-title">Added</div>
@@ -152,6 +152,9 @@
         <li>Session search/filter &mdash; case-insensitive search in sidebar by title, first prompt, or session ID</li>
         <li>Graceful error states &mdash; pulsing reconnection banner when gateway disconnects, styled error blocks in chat, CLI-not-found install instructions</li>
         <li><code>stripInternalTags()</code> &mdash; cleans Claude Code's internal XML tags from session previews, extracts slash command names</li>
+        <li>Slash command collapsing &mdash; gateway compresses command XML into compact notices; user messages render through <code>marked</code> + <code>sanitizeHtml</code></li>
+        <li>Clickable file paths &mdash; absolute and <code>~/</code> paths become <code>vscode://file</code> links via Marked inline extension, styled as pills</li>
+        <li>Theme support &mdash; dark/light theme with segmented picker in Settings, FOUC prevention via inline script, ~50 CSS variable overrides</li>
         <li>MIT LICENSE file</li>
         <li>README.md with architecture diagram, quick start, and development commands</li>
         <li>Release plan living doc (<code>release.html</code>)</li>
@@ -162,7 +165,7 @@
       <div class="release__section-title">Changed</div>
       <ul class="release__list">
         <li>Version bumped to 1.0.0 &mdash; removed <code>"private": true</code>, added description, author, license, repository, keywords</li>
-        <li>Test count: 279 &rarr; 310 across 14 test files</li>
+        <li>Test count: 279 &rarr; 345 across 14 test files</li>
       </ul>
     </div>
   </div>
@@ -430,7 +433,7 @@
     </div>
   </div>
 
-  <p class="updated">Last updated: 2026-04-08</p>
+  <p class="updated">Last updated: 2026-04-12</p>
 
 </div>
 </body>

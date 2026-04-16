@@ -4,8 +4,14 @@ import { MODEL_OPTIONS } from "../constants.ts";
 
 const STORAGE_KEY = "cockpit-settings";
 
+const THEME_OPTIONS = [
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+];
+
 interface SettingsData {
   defaultModel: string;
+  theme?: string;
 }
 
 function loadSettings(): SettingsData {
@@ -27,20 +33,49 @@ export class CockpitSettings extends LitElement {
   }
 
   @state() private defaultModel = "";
+  @state() private theme = "dark";
 
   override connectedCallback() {
     super.connectedCallback();
-    this.defaultModel = loadSettings().defaultModel;
+    const settings = loadSettings();
+    this.defaultModel = settings.defaultModel;
+    this.theme = settings.theme || "dark";
   }
 
   private _onModelChange(e: Event) {
     this.defaultModel = (e.target as HTMLSelectElement).value;
-    saveSettings({ defaultModel: this.defaultModel });
+    saveSettings({ defaultModel: this.defaultModel, theme: this.theme });
+  }
+
+  private _onThemeChange(value: string) {
+    this.theme = value;
+    document.documentElement.setAttribute("data-theme", value);
+    saveSettings({ defaultModel: this.defaultModel, theme: this.theme });
   }
 
   override render() {
     return html`
       <div class="settings">
+        <div class="settings__section">
+          <div class="settings__section-title">Appearance</div>
+          <div class="settings__row">
+            <label class="settings__label">Theme</label>
+            <div class="settings__control">
+              <div class="settings__button-group">
+                ${THEME_OPTIONS.map(
+                  (opt) => html`
+                    <button
+                      class="settings__button-group-btn ${opt.value === this.theme ? "settings__button-group-btn--active" : ""}"
+                      @click=${() => this._onThemeChange(opt.value)}
+                    >${opt.label}</button>
+                  `
+                )}
+              </div>
+              <div class="settings__hint">Switch between dark and light color schemes.</div>
+            </div>
+          </div>
+        </div>
+
         <div class="settings__section">
           <div class="settings__section-title">Chat Defaults</div>
           <div class="settings__row">

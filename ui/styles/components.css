@@ -37,6 +37,10 @@
   pointer-events: none;
 }
 
+[data-theme="light"] .ov-card::before {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent 40%);
+}
+
 .ov-card:hover {
   border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
   background: var(--bg-elevated);
@@ -569,7 +573,7 @@
 .chat__session-item:hover {
   background: var(--bg-hover);
   border-color: color-mix(in srgb, var(--accent) 15%, transparent);
-  box-shadow: 0 0 12px rgba(218, 119, 86, 0.06);
+  box-shadow: 0 0 12px var(--accent-glow);
 }
 
 .chat__session-item--active {
@@ -1545,6 +1549,48 @@
 /* ===========================================
    Settings View
    =========================================== */
+
+/* ── Segmented Button Group (Settings) ── */
+
+.settings__button-group {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.settings__button-group-btn {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  color: var(--muted);
+  background: var(--bg-elevated);
+  border: none;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.settings__button-group-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.settings__button-group-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.settings__button-group-btn--active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.settings__button-group-btn--active:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
 
 .settings {
   max-width: 560px;
