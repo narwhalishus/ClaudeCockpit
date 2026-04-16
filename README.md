@@ -12,6 +12,7 @@ A visual cockpit for [Claude Code](https://claude.ai/code) sessions. Browse sess
 - **Track costs** — Estimated Bedrock pricing by model, token breakdown per session, cache hit stats
 - **Auto-title sessions** — Untitled CLI sessions get concise titles generated via Haiku
 - **Summarize sessions** — One-click AI summary to catch up on what happened in a session
+- **Dark & light themes** — Segmented picker in Settings with instant toggle and FOUC-free reload
 
 ## Quick start
 
