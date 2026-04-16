@@ -3,3 +3,9 @@ dist/
 *.log
 .DS_Store
 .playwright-mcp/
+.claude/
+.env
+.env.*
+*.pem
+*.key
+credentials.json

@@ -19,7 +19,7 @@ A visual cockpit for [Claude Code](https://claude.ai/code) sessions. Browse sess
 **Prerequisites:** [Node.js](https://nodejs.org/) 22+ and [Claude Code CLI](https://claude.ai/code) installed.
 
 ```bash
-git clone https://github.com/bryao/ClaudeCockpit.git
+git clone https://github.com/narwhalishus/ClaudeCockpit.git
 cd ClaudeCockpit
 npm install
 npm run dev
