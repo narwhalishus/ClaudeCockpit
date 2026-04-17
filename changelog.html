@@ -97,12 +97,14 @@
       list-style: none; padding: 0; margin: 0;
     }
     .release__list li {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 4px 0; font-size: 14px; color: var(--text);
+      position: relative;
+      padding: 4px 0 4px 16px;
+      font-size: 14px; color: var(--text);
     }
     .release__list li::before {
       content: "";
-      flex-shrink: 0; width: 6px; height: 6px; margin-top: 8px;
+      position: absolute; left: 0; top: 13px;
+      width: 6px; height: 6px;
       border-radius: 50%;
       background: var(--border-strong);
     }
