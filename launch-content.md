@@ -39,7 +39,7 @@ One-click "catch me up" summaries for any session.
 ### Tweet 5 (Tech + CTA)
 Built with Lit + Vite + TypeScript. Node.js gateway reads JSONL session files and spawns claude -p subprocesses.
 
-345 tests. MIT licensed. No API key needed — works with your existing Claude Code sessions.
+362 tests. MIT licensed. No API key needed — works with your existing Claude Code sessions.
 
 [GITHUB_URL]
 
@@ -59,7 +59,7 @@ Hey HN, I built this after using Claude Code heavily for a few months. I wanted 
 
 ClaudeCockpit reads the JSONL session files that Claude Code writes to `~/.claude/projects/`. The Node.js gateway parses these files and serves them via HTTP + WebSocket. For live chat, it spawns `claude -p --output-format stream-json` subprocesses and streams the output to the browser.
 
-**Stack:** Lit web components, Vite, TypeScript. Custom req/res/event frame protocol over WebSocket. 345 tests (Vitest + jsdom).
+**Stack:** Lit web components, Vite, TypeScript. Custom req/res/event frame protocol over WebSocket. 362 tests (Vitest + jsdom).
 
 **Features:**
 - Session browsing with search, pinning, and auto-generated titles (via Haiku)
@@ -104,7 +104,7 @@ npm run dev
 
 Open localhost:5173 and you'll see all your sessions.
 
-MIT licensed, 345 tests, Lit + Vite + TypeScript.
+MIT licensed, 362 tests, Lit + Vite + TypeScript.
 
 [SCREENSHOT_URL]
 
@@ -118,7 +118,7 @@ Show-off Saturday: Built a visual dashboard for my AI coding sessions (Claude Co
 ### Body
 I've been using Claude Code (Anthropic's CLI coding tool) for a while and built a browser dashboard to manage my sessions. It reads session files from disk and provides a visual interface with live streaming, tool approval, cost tracking, and session summaries.
 
-Tech stack: Lit web components, Vite, TypeScript, Node.js gateway with WebSocket streaming. 345 tests.
+Tech stack: Lit web components, Vite, TypeScript, Node.js gateway with WebSocket streaming. 362 tests.
 
 It's specifically for Claude Code, but the architecture (JSONL reader + streaming gateway + WS protocol) could be adapted for other tools.
 

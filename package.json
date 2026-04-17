@@ -18,17 +18,33 @@
     "websocket"
   ],
   "type": "module",
+  "bin": {
+    "claude-cockpit": "./bin/claude-cockpit.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "concurrently \"vite\" \"tsx watch gateway/server.ts\"",
     "dev:ui": "vite",
     "dev:gateway": "tsx watch gateway/server.ts",
+    "start": "node bin/claude-cockpit.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run tests/gateway/integration.test.ts",
     "typecheck": "tsc --noEmit",
     "ci": "npm run typecheck && npm test && npm run build",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "npm run build:ui && npm run build:gateway",
+    "build:ui": "vite build",
+    "build:gateway": "tsc -p tsconfig.gateway.json",
+    "preview": "vite preview",
+    "prepublishOnly": "npm run ci"
   },
   "dependencies": {
     "lit": "^3.3.0",

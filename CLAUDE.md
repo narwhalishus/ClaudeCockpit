@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — starts both Vite dev server (:5173) and gateway server (:18800) concurrently
 - `npm run dev:ui` — Vite frontend only
 - `npm run dev:gateway` — gateway server only (uses `tsx watch`)
-- `npm test` — run all tests (`vitest run`, 345 tests)
+- `npm test` — run all tests (`vitest run`, 362 tests)
 - `npm run test:watch` — tests in watch mode
 - `npm run test:integration` — integration tests only
 - `npm run typecheck` — TypeScript type check (`tsc --noEmit`)

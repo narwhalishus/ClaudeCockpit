@@ -7,31 +7,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.hoisted runs before vi.mock hoisting, so the mock fn is available in factories
-const { mockWriteControlResponse, capturedHttpHandler } = vi.hoisted(() => ({
+const { mockWriteControlResponse } = vi.hoisted(() => ({
   mockWriteControlResponse: vi.fn().mockReturnValue(true),
-  capturedHttpHandler: { fn: null as ((req: unknown, res: unknown) => Promise<void>) | null },
 }));
-
-// ── Mock node:http and ws to prevent server.ts from actually listening ────
-// Use synchronous factories to ensure mocks are in place before module evaluation.
-vi.mock("node:http", () => {
-  const m = {
-    createServer: vi.fn((handler: unknown) => {
-      capturedHttpHandler.fn = handler as typeof capturedHttpHandler.fn;
-      return {
-        listen: vi.fn((_port: number, cb?: () => void) => cb?.()),
-      };
-    }),
-  };
-  return { ...m, default: m };
-});
-vi.mock("ws", () => {
-  class MockWebSocketServer {
-    on = vi.fn();
-    clients = new Set();
-  }
-  return { WebSocketServer: MockWebSocketServer, default: { WebSocketServer: MockWebSocketServer } };
-});
 
 // ── Mock session-store ────────────────────────────────────────────────────
 vi.mock("../../gateway/services/session-store.ts", () => ({
@@ -62,7 +40,7 @@ vi.mock("../../gateway/services/claude-cli.ts", () => ({
 }));
 
 import { EventEmitter } from "node:events";
-import { handleWsRequest } from "../../gateway/server.ts";
+import { handleWsRequest, handleHttp } from "../../gateway/server.ts";
 import { getOverviewStats, listSessions, listProjects, getSessionMessages, getSessionTranscript, renameSession } from "../../gateway/services/session-store.ts";
 import { startChat, abortChat, getProcess, generateTitle } from "../../gateway/services/claude-cli.ts";
 import type { RequestFrame } from "../../gateway/protocol/frames.ts";
@@ -427,7 +405,7 @@ function mockHttpRes() {
 }
 
 describe("HTTP handler", () => {
-  const httpHandler = () => capturedHttpHandler.fn!;
+  const httpHandler = () => handleHttp;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -435,7 +413,7 @@ describe("HTTP handler", () => {
 
   it("GET /api/overview → returns overview stats with gateway timestamp", async () => {
     const { res, data } = mockHttpRes();
-    await httpHandler()(mockHttpReq("GET", "/api/overview"), res);
+    await httpHandler()(mockHttpReq("GET", "/api/overview") as never, res as never);
 
     expect(getOverviewStats).toHaveBeenCalled();
     expect(data.status).toBe(200);
@@ -446,14 +424,14 @@ describe("HTTP handler", () => {
 
   it("GET /api/overview?project=p1 → passes project filter", async () => {
     const { res } = mockHttpRes();
-    await httpHandler()(mockHttpReq("GET", "/api/overview?project=p1"), res);
+    await httpHandler()(mockHttpReq("GET", "/api/overview?project=p1") as never, res as never);
 
     expect(getOverviewStats).toHaveBeenCalledWith("p1");
   });
 
   it("GET /api/sessions → returns sessions list", async () => {
     const { res, data } = mockHttpRes();
-    await httpHandler()(mockHttpReq("GET", "/api/sessions"), res);
+    await httpHandler()(mockHttpReq("GET", "/api/sessions") as never, res as never);
 
     expect(listSessions).toHaveBeenCalled();
     expect(data.status).toBe(200);
@@ -464,7 +442,7 @@ describe("HTTP handler", () => {
 
   it("GET /api/projects → returns projects list", async () => {
     const { res, data } = mockHttpRes();
-    await httpHandler()(mockHttpReq("GET", "/api/projects"), res);
+    await httpHandler()(mockHttpReq("GET", "/api/projects") as never, res as never);
 
     expect(listProjects).toHaveBeenCalled();
     expect(data.status).toBe(200);
@@ -475,7 +453,7 @@ describe("HTTP handler", () => {
 
   it("GET /api/health → returns health info", async () => {
     const { res, data } = mockHttpRes();
-    await httpHandler()(mockHttpReq("GET", "/api/health"), res);
+    await httpHandler()(mockHttpReq("GET", "/api/health") as never, res as never);
 
     expect(data.status).toBe(200);
     const body = JSON.parse(data.body);
@@ -486,7 +464,7 @@ describe("HTTP handler", () => {
 
   it("OPTIONS → 204 with CORS headers", async () => {
     const { res, data } = mockHttpRes();
-    await httpHandler()(mockHttpReq("OPTIONS", "/api/overview"), res);
+    await httpHandler()(mockHttpReq("OPTIONS", "/api/overview") as never, res as never);
 
     expect(data.status).toBe(204);
     expect(data.headers["Access-Control-Allow-Origin"]).toBe("*");
@@ -495,7 +473,7 @@ describe("HTTP handler", () => {
 
   it("unknown path → 404", async () => {
     const { res, data } = mockHttpRes();
-    await httpHandler()(mockHttpReq("GET", "/api/nonexistent"), res);
+    await httpHandler()(mockHttpReq("GET", "/api/nonexistent") as never, res as never);
 
     expect(data.status).toBe(404);
     const body = JSON.parse(data.body);
@@ -505,11 +483,66 @@ describe("HTTP handler", () => {
   it("service error → 500", async () => {
     vi.mocked(getOverviewStats).mockRejectedValueOnce(new Error("db down"));
     const { res, data } = mockHttpRes();
-    await httpHandler()(mockHttpReq("GET", "/api/overview"), res);
+    await httpHandler()(mockHttpReq("GET", "/api/overview") as never, res as never);
 
     expect(data.status).toBe(500);
     const body = JSON.parse(data.body);
     expect(body.error).toBe("Internal server error");
+  });
+});
+
+// ── startGateway with serveStatic ────────────────────────────────────────
+
+describe("startGateway with serveStatic", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("routes /api/health to JSON and serves static files for non-API paths", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { startGateway } = await import("../../gateway/server.ts");
+
+    const dir = mkdtempSync(join(tmpdir(), "cockpit-static-"));
+    writeFileSync(join(dir, "index.html"), "<html>hello</html>");
+    writeFileSync(join(dir, "app.css"), "body { color: red; }");
+
+    const { port, close } = await startGateway({
+      port: 0,
+      serveStatic: dir,
+      quiet: true,
+    });
+
+    try {
+      // API route still returns JSON
+      const healthRes = await fetch(`http://localhost:${port}/api/health`);
+      expect(healthRes.status).toBe(200);
+      const healthBody = await healthRes.json();
+      expect(healthBody.status).toBe("ok");
+
+      // Unknown /api/ path returns 404, NOT rewritten to index.html
+      const apiMissRes = await fetch(`http://localhost:${port}/api/nonexistent`);
+      expect(apiMissRes.status).toBe(404);
+      expect(apiMissRes.headers.get("content-type")).toContain("application/json");
+
+      // Root serves index.html
+      const rootRes = await fetch(`http://localhost:${port}/`);
+      expect(rootRes.status).toBe(200);
+      expect(await rootRes.text()).toBe("<html>hello</html>");
+
+      // Known asset served with proper mime
+      const cssRes = await fetch(`http://localhost:${port}/app.css`);
+      expect(cssRes.status).toBe(200);
+      expect(cssRes.headers.get("content-type")).toContain("text/css");
+
+      // Unknown no-extension path falls back to index.html (SPA routing)
+      const spaRes = await fetch(`http://localhost:${port}/chat/s1`);
+      expect(spaRes.status).toBe(200);
+      expect(await spaRes.text()).toBe("<html>hello</html>");
+    } finally {
+      await close();
+    }
   });
 });
 

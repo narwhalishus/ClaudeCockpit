@@ -2,7 +2,10 @@ import {
   createServer,
   type IncomingMessage,
   type ServerResponse,
+  type Server,
 } from "node:http";
+import { readFile, stat } from "node:fs/promises";
+import { extname, join, resolve } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
   getOverviewStats,
@@ -25,8 +28,11 @@ import {
   type GatewayFrame,
 } from "./protocol/frames.ts";
 
-const PORT = 18800;
+const DEFAULT_PORT = 18800;
 const STARTED_AT = new Date().toISOString();
+
+let boundPort = DEFAULT_PORT;
+let staticRoot: string | null = null;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -48,14 +54,65 @@ function notFound(res: ServerResponse) {
   json(res, { error: "Not found" }, 404);
 }
 
-async function handleHttp(req: IncomingMessage, res: ServerResponse) {
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js":   "application/javascript; charset=utf-8",
+  ".mjs":  "application/javascript; charset=utf-8",
+  ".css":  "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg":  "image/svg+xml",
+  ".png":  "image/png",
+  ".jpg":  "image/jpeg",
+  ".ico":  "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+};
+
+async function serveStaticFile(
+  res: ServerResponse,
+  root: string,
+  urlPath: string,
+): Promise<void> {
+  // Resolve request path within root, blocking traversal
+  const normalized = decodeURIComponent(urlPath).replace(/^\/+/, "");
+  const candidate = normalized === "" ? "index.html" : normalized;
+  const absolute = resolve(root, candidate);
+  if (!absolute.startsWith(resolve(root))) {
+    notFound(res);
+    return;
+  }
+
+  try {
+    const info = await stat(absolute);
+    const filePath = info.isDirectory() ? join(absolute, "index.html") : absolute;
+    const content = await readFile(filePath);
+    const mime = MIME_TYPES[extname(filePath).toLowerCase()] ?? "application/octet-stream";
+    res.writeHead(200, { "Content-Type": mime });
+    res.end(content);
+  } catch {
+    // SPA fallback: serve index.html for any unknown non-asset route
+    if (!extname(candidate)) {
+      try {
+        const indexHtml = await readFile(resolve(root, "index.html"));
+        res.writeHead(200, { "Content-Type": MIME_TYPES[".html"] });
+        res.end(indexHtml);
+        return;
+      } catch {
+        /* fall through to 404 */
+      }
+    }
+    notFound(res);
+  }
+}
+
+export async function handleHttp(req: IncomingMessage, res: ServerResponse) {
   if (req.method === "OPTIONS") {
     res.writeHead(204, CORS_HEADERS);
     res.end();
     return;
   }
 
-  const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+  const url = new URL(req.url ?? "/", `http://localhost:${boundPort}`);
   const path = url.pathname;
 
   try {
@@ -77,6 +134,11 @@ async function handleHttp(req: IncomingMessage, res: ServerResponse) {
         startedAt: STARTED_AT,
         wsClients: wss?.clients.size ?? 0,
       });
+    } else if (path.startsWith("/api/") || path === "/ws") {
+      // Unknown API/WS path — never rewrite to index.html
+      notFound(res);
+    } else if (staticRoot) {
+      await serveStaticFile(res, staticRoot, path);
     } else {
       notFound(res);
     }
@@ -434,19 +496,75 @@ function handleWsConnection(ws: WebSocket) {
 
 // ─── Start server ──────────────────────────────────────────────────────────
 
-const server = createServer(handleHttp);
+export interface StartGatewayOptions {
+  /** Port to bind. 0 = OS-assigned. Default: 18800 */
+  port?: number;
+  /** Absolute path to built UI to serve. If unset, HTTP only exposes /api/*. */
+  serveStatic?: string;
+  /** Suppress startup info logs (errors still log). */
+  quiet?: boolean;
+}
 
-wss = new WebSocketServer({ server, path: "/ws" });
-wss.on("connection", handleWsConnection);
+export interface StartedGateway {
+  port: number;
+  close: () => Promise<void>;
+}
 
-server.listen(PORT, () => {
-  console.log(`ClaudeCockpit gateway listening on :${PORT}`);
-  console.log(`  HTTP  /api/overview, /api/sessions, /api/projects, /api/health`);
-  console.log(`  WS    ws://localhost:${PORT}/ws`);
-  console.log(`  Methods: overview.get, sessions.list, projects.list, chat.send, chat.abort`);
+export async function startGateway(
+  opts: StartGatewayOptions = {},
+): Promise<StartedGateway> {
+  const port = opts.port ?? DEFAULT_PORT;
+  staticRoot = opts.serveStatic ?? null;
+
+  const server: Server = createServer(handleHttp);
+  wss = new WebSocketServer({ server, path: "/ws" });
+  wss.on("connection", handleWsConnection);
+
+  await new Promise<void>((resolve, reject) => {
+    const onError = (err: Error) => {
+      server.off("listening", onListening);
+      reject(err);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(port);
+  });
+
+  const addr = server.address();
+  boundPort = typeof addr === "object" && addr ? addr.port : port;
+
+  if (!opts.quiet) {
+    console.log(`ClaudeCockpit gateway listening on :${boundPort}`);
+    console.log(`  HTTP  /api/overview, /api/sessions, /api/projects, /api/health`);
+    console.log(`  WS    ws://localhost:${boundPort}/ws`);
+    console.log(`  Methods: overview.get, sessions.list, projects.list, chat.send, chat.abort`);
+  }
 
   // One-time cleanup: remove error titles written by broken title generation
   cleanErrorTitles().catch((err) =>
     console.error("cleanErrorTitles failed:", err)
   );
-});
+
+  return {
+    port: boundPort,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        wss?.close();
+        server.close((err) => (err ? reject(err) : resolve()));
+      }),
+  };
+}
+
+// Dev entrypoint: `tsx watch gateway/server.ts` runs this block.
+// Skipped when imported (e.g. from gateway/prod.ts or tests).
+const isDirectRun = import.meta.url === `file://${process.argv[1]}`;
+if (isDirectRun) {
+  startGateway({ port: DEFAULT_PORT }).catch((err) => {
+    console.error("Failed to start gateway:", err);
+    process.exit(1);
+  });
+}
