@@ -130,8 +130,8 @@
 
   <h1>Change<span>log</span></h1>
   <p class="subtitle">
-    Release history for ClaudeCockpit. Versions follow phase milestones.
-    <br><a href="/roadmap.html">Roadmap</a> &middot; <a href="/contributing.html">Contributing</a> &middot; <a href="/testing.html">Testing</a> &middot; <a href="/release.html">Release Plan</a>
+    Release history for ClaudeCockpit. Sunset as personal learning artifact on 2026-04-17.
+    <br><a href="/roadmap.html">Roadmap</a> &middot; <a href="/contributing.html">Contributing</a> &middot; <a href="/testing.html">Testing</a> &middot; <a href="/release.html">Release Notes</a>
   </p>
 
   <!-- ============================================================ -->
@@ -140,10 +140,10 @@
   <div class="release release--latest">
     <div class="release__head">
       <span class="release__version">v1.0.0</span>
-      <span class="release__name">Open Source Release</span>
+      <span class="release__name">Personal learning artifact</span>
       <span class="release__badge badge--latest">Latest</span>
     </div>
-    <div class="release__date">2026-04-12</div>
+    <div class="release__date">2026-04-17</div>
 
     <div class="release__section">
       <div class="release__section-title">Added</div>
@@ -155,17 +155,29 @@
         <li>Slash command collapsing &mdash; gateway compresses command XML into compact notices; user messages render through <code>marked</code> + <code>sanitizeHtml</code></li>
         <li>Clickable file paths &mdash; absolute and <code>~/</code> paths become <code>vscode://file</code> links via Marked inline extension, styled as pills</li>
         <li>Theme support &mdash; dark/light theme with segmented picker in Settings, FOUC prevention via inline script, ~50 CSS variable overrides</li>
+        <li><code>npx claude-cockpit</code> bridge path &mdash; preflight (Node &ge; 22, <code>claude</code> on PATH, <code>~/.claude/projects/</code>), free-port picker (18800 &rarr; increment), macOS auto-open with <code>CLAUDE_COCKPIT_NO_OPEN</code> guard, static-on-same-port with SPA fallback</li>
+        <li>GitHub issue templates &mdash; bug report + feature request (YAML issue forms)</li>
         <li>MIT LICENSE file</li>
         <li>README.md with architecture diagram, quick start, and development commands</li>
-        <li>Release plan living doc (<code>release.html</code>)</li>
       </ul>
     </div>
 
     <div class="release__section">
       <div class="release__section-title">Changed</div>
       <ul class="release__list">
+        <li>Sunset as personal learning artifact on 2026-04-17 &mdash; public repo + npm publish only, no launch campaign, no product roadmap. Rationale: CC wrapper/dashboard space is saturated, first-party Claude Desktop is the incumbent.</li>
+        <li>README + <code>package.json</code> reframed as "personal artifact, not a product"; unaffiliated disclaimer added per Anthropic trademark norms</li>
+        <li>Logo swapped from Anthropic's Claude mark to a cockpit/gauge SVG; favicon references point to <code>logo.svg</code> (old <code>favicon.ico</code> removed)</li>
+        <li><code>release.html</code> reshaped from staged launch plan to short status page</li>
         <li>Version bumped to 1.0.0 &mdash; removed <code>"private": true</code>, added description, author, license, repository, keywords</li>
-        <li>Test count: 279 &rarr; 345 across 14 test files</li>
+        <li>Test count: 279 &rarr; 362 across 15 test files (theme tests + onboarding audit tests)</li>
+      </ul>
+    </div>
+
+    <div class="release__section">
+      <div class="release__section-title">Removed</div>
+      <ul class="release__list">
+        <li><code>launch-content.md</code> &mdash; prepared launch copy no longer needed under sunset posture</li>
       </ul>
     </div>
   </div>
@@ -433,7 +445,7 @@
     </div>
   </div>
 
-  <p class="updated">Last updated: 2026-04-12</p>
+  <p class="updated">Last updated: 2026-04-17 &mdash; Sunset as personal learning artifact. 362 tests across 15 files.</p>
 
 </div>
 </body>

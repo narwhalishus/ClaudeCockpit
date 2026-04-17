@@ -280,99 +280,33 @@
     </ul>
   </div>
 
-  <!-- Phase 3 -->
-  <div class="phase phase--planned">
+  <!-- Sunset notice: phases 3/4/5 were planned before the 2026-04-17 sunset decision -->
+  <!-- Kept below as historical context only — none of this is active work -->
+
+  <div class="phase" style="opacity: 0.5;">
     <div class="phase__head">
-      <span class="phase__badge badge--planned">Planned</span>
-      <span class="phase__title">Phase 3 — Usage Analytics + Cost Tracking</span>
+      <span class="phase__badge badge--planned">Not pursued</span>
+      <span class="phase__title">Phases 3–5 — Unshipped directions</span>
     </div>
-    <p class="phase__desc">Full analytics with token breakdowns, Bedrock cost tracking, daily charts.</p>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Usage aggregation service (by day, model, project)</li>
-      <li><span class="check check--done">&#10003;</span> Bedrock pricing mapper (model ID → $/token) — <code>gateway/services/pricing.ts</code></li>
-      <li><span class="check check--todo"></span> Usage views — metrics, cost breakdown charts, daily trends</li>
-      <li><span class="check check--todo"></span> Multi-project usage comparison</li>
-    </ul>
-  </div>
+    <p class="phase__desc">The following phases were scoped before the project was sunset as a personal learning artifact on 2026-04-17. They are preserved below as a record of what was considered, not as a roadmap.</p>
 
-  <!-- Phase 4 — Terminal Parity -->
-  <div class="phase phase--planned">
-    <div class="phase__head">
-      <span class="phase__badge badge--planned">Planned</span>
-      <span class="phase__title">Phase 4 — Terminal Parity</span>
-    </div>
-    <p class="phase__desc">Close the feature gap between ClaudeCockpit and the Claude Code terminal — system messages, tool progress, AskUserQuestion, hooks, rate limiting, MCP elicitation, and streamlined output.</p>
+    <h3 style="margin-top: 20px;">Phase 3 — Usage Analytics + Cost Tracking <span style="color: var(--muted); font-weight: 400; font-size: 13px;">not pursued</span></h3>
+    <p style="color: var(--muted); font-size: 14px;">Full analytics with token breakdowns, Bedrock cost tracking by day/model/project, daily charts, multi-project comparison. The pricing foundation (<code>gateway/services/pricing.ts</code>) exists in code and powers the overview "est. cost" card; the analytics views on top of it were never built.</p>
 
-    <h3>4.0 — System Messages &amp; Session State <span style="color: var(--muted); font-weight: 400; font-size: 13px;">S–M each</span></h3>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Session state indicator — idle/running/waiting_approval/rate_limited dot in toolbar, driven by chat events + system subtypes</li>
-      <li><span class="check check--todo"></span> System init display — model, permission mode, tool count at conversation start</li>
-      <li><span class="check check--todo"></span> Compact boundary markers — horizontal rule with "Context compacted" label</li>
-      <li><span class="check check--todo"></span> isMeta propagation — add to types, render meta messages with reduced opacity</li>
-    </ul>
+    <h3>Phase 4 — Terminal Parity <span style="color: var(--muted); font-weight: 400; font-size: 13px;">not pursued</span></h3>
+    <p style="color: var(--muted); font-size: 14px;">Would have closed the feature gap with the Claude Code terminal across seven sub-phases: system messages &amp; session state, tool progress &amp; turn cost, AskUserQuestion rendering, hook &amp; task events, rate limiting &amp; resilience, MCP elicitation forms, and streamlined output modes.</p>
 
-    <h3>4.1 — Tool Progress &amp; Turn Cost <span style="color: var(--muted); font-weight: 400; font-size: 13px;">M</span></h3>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Tool progress — handle <code>tool_progress</code> events, show elapsed time next to tool name with pulsing animation</li>
-      <li><span class="check check--todo"></span> Result event handling — extract cost, duration, usage from <code>result</code> event</li>
-      <li><span class="check check--todo"></span> Turn cost annotation — "$0.023 | 2.4s" muted text below each assistant turn</li>
-    </ul>
-
-    <h3>4.2 — AskUserQuestion <span style="color: var(--muted); font-weight: 400; font-size: 13px;">L — biggest parity gap</span></h3>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Question card layout — header chip, question text, option cards in grid</li>
-      <li><span class="check check--todo"></span> Option selection + response — wire to <code>tool.respond</code>, support multi-select, "Other" free text</li>
-      <li><span class="check check--todo"></span> Preview rendering — side-by-side layout with markdown/HTML preview pane per option</li>
-      <li><span class="check check--todo"></span> Keyboard navigation — arrow keys, Enter to select, Esc to dismiss</li>
-    </ul>
-
-    <h3>4.3 — Hook &amp; Task Events <span style="color: var(--muted); font-weight: 400; font-size: 13px;">M</span></h3>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Hook lifecycle blocks — gear icon, hook name, progress text, completion status</li>
-      <li><span class="check check--todo"></span> Task notifications — info annotations, clickable to navigate to sub-session</li>
-      <li><span class="check check--todo"></span> Local command output — reuse structured stdout rendering from Phase 2.5</li>
-    </ul>
-
-    <h3>4.4 — Rate Limiting &amp; Resilience <span style="color: var(--muted); font-weight: 400; font-size: 13px;">S–M</span></h3>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Rate limit banner — non-blocking toast with countdown timer</li>
-      <li><span class="check check--todo"></span> API retry indicator — pulsing dot in toolbar status area</li>
-    </ul>
-
-    <h3>4.5 — MCP Elicitation <span style="color: var(--muted); font-weight: 400; font-size: 13px;">L</span></h3>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Elicitation form rendering — generate form from JSON Schema (text inputs, selects)</li>
-      <li><span class="check check--todo"></span> Elicitation response — extend <code>control_response</code> to support form data (not just allow/deny)</li>
-    </ul>
-
-    <h3>4.6 — Streamlined Output <span style="color: var(--muted); font-weight: 400; font-size: 13px;">S</span></h3>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Streamlined text — alternative compact assistant text mode</li>
-      <li><span class="check check--todo"></span> Tool use summary — "Read 3 files, wrote 1" one-liner for completed turns</li>
-      <li><span class="check check--todo"></span> Post-turn summary — collapsible block below assistant message</li>
-    </ul>
-  </div>
-
-  <!-- Phase 5 — Coworking Space -->
-  <div class="phase phase--planned">
-    <div class="phase__head">
-      <span class="phase__badge badge--planned">Planned</span>
-      <span class="phase__title">Phase 5 — Coworking Space</span>
-    </div>
-    <p class="phase__desc">Multi-agent workspace where a single user delegates responsibilities to a team of agents (e.g. social media manager, ops metrics watcher, issue triager), each interacted with through a shared UI on top of the existing chat-as-session-cockpit foundation. Still single-user (Bryan + his own agents) — does not violate the "skip multi-user" rule. Differentiation lever versus generic multi-model chat is building around Claude Code concepts: agent teams, subagents, plan mode, permissions, memory.</p>
-    <ul class="checklist">
-      <li><span class="check check--todo"></span> Brainstorm scope when ready — post-launch direction, not a v1.0 blocker</li>
-      <li><span class="check check--todo"></span> Candidate pilot: use the coworking space to help manage ClaudeCockpit's own public launch</li>
-    </ul>
+    <h3>Phase 5 — Coworking Space <span style="color: var(--muted); font-weight: 400; font-size: 13px;">not pursued here</span></h3>
+    <p style="color: var(--muted); font-size: 14px;">Multi-agent workspace where a single user delegates responsibilities to a team of agents, on top of the session-cockpit foundation. Evaluated as a possible differentiation angle during the pivot discussion; ultimately judged to be a different product that doesn't belong inside ClaudeCockpit. If pursued, it would be its own project.</p>
   </div>
 
   <!-- ============================================================ -->
-  <h2>Feature Backlog</h2>
-  <div class="features">
+  <h2>Unshipped ideas (historical)</h2>
+  <p style="color: var(--muted); font-size: 14px; margin: 0 0 20px;">Features considered during active development. None will be built under the sunset posture — preserved here as a record of what was on the table.</p>
+  <div class="features" style="opacity: 0.6;">
     <div class="feat">
       <div class="feat__name">Cost Breakdown Charts</div>
       <div class="feat__desc">Aggregate cost by day/model/project and visualize trends. Basic total estimation already in overview via <code>pricing.ts</code>.</div>
-      <span class="feat__tag tag--p3">Phase 3</span>
     </div>
     <div class="feat">
       <div class="feat__name">Memory Browser</div>
@@ -492,7 +426,7 @@ npm test             # Run all 362 tests
 npm run test:watch   # Tests in watch mode
 npm run build        # Production build → dist/</pre>
 
-  <p class="updated">Last updated: 2026-04-17 — Phases 1, 2, 2.5 complete. Phase 3 planned. Phase 4 (Terminal Parity) and Phase 5 (Coworking Space) roadmapped. 362 tests across 15 files</p>
+  <p class="updated">Last updated: 2026-04-17 — Sunset as personal learning artifact. Phases 1, 2, 2.5 shipped. Phases 3–5 preserved as historical notes only. 362 tests across 15 files.</p>
 
 </div>
 </body>

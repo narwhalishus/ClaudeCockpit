@@ -27,12 +27,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
+**Sunset as personal learning artifact 2026-04-17.** Public repo + npm only, no active product development. Historical phases below are complete and not being extended.
+
 - **Phase 1 (Static Cockpit)**: Complete — read-only views for overview, sessions, projects
 - **Phase 2 (Gateway + Live Chat)**: Complete — WebSocket streaming, chat-as-session-cockpit, session resume
 - **Phase 2.5 (Chat Refinements)**: Complete — session detail sidebar, model selector, conversation summary, overview redesign, structured user messages + per-tool colored symbols, gateway resilience fix
-- **Phase 3 (Usage Analytics)**: Planned — token breakdown by day/model/project, Bedrock cost tracking
 
-Full roadmap with checklists: `roadmap.html` | Changelog: `changelog.html` | Testing pipeline: `testing.html` | Contributing guide: `contributing.html`
+Historical roadmap: `roadmap.html` | Changelog: `changelog.html` | Testing pipeline: `testing.html` | Contributing guide: `contributing.html`
 
 ## Architecture
 
