@@ -2,6 +2,8 @@
 
 A visual cockpit for [Claude Code](https://claude.ai/code) sessions. Browse session history, stream live conversations, approve tool use, and track token costs — all from your browser.
 
+> **Unofficial third-party tool. Not affiliated with or endorsed by Anthropic.**
+
 ![ClaudeCockpit screenshot](https://github.com/user-attachments/assets/placeholder-screenshot.png)
 
 ## Quick start
@@ -70,12 +72,16 @@ Set `CLAUDE_COCKPIT_NO_OPEN=1` when running `npm start` over SSH or in CI to ski
 
 ## Project status
 
+This is a **personal learning artifact**, not a product. It's published publicly and on npm so anyone curious can run it, but there is no active launch, no roadmap commitment, and no support guarantee. I use it myself occasionally and push updates when I feel like it. Open-source under MIT — fork freely.
+
+The Claude Code wrapper/dashboard space is saturated (Claude Deck, PandaProg's ClaudeCockpit, Claude Desktop itself, and others), and differentiating meaningfully against a first-party incumbent is a losing race. Rather than compete, I'm leaving this public as a reference implementation of a browser gateway for Claude Code sessions.
+
 - **Phase 1** (Static Cockpit) — Complete
 - **Phase 2** (Gateway + Live Chat) — Complete
 - **Phase 2.5** (Chat Refinements) — Complete
-- **Phase 3** (Usage Analytics) — Planned
+- **Phase 3+** — No active development plans
 
-See [roadmap.html](public/roadmap.html) for the full roadmap and [changelog.html](public/changelog.html) for release history.
+See [roadmap.html](public/roadmap.html) for the historical roadmap and [changelog.html](public/changelog.html) for release history.
 
 ## License
 

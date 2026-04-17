@@ -1,7 +1,7 @@
 {
   "name": "claude-cockpit",
   "version": "1.0.0",
-  "description": "A visual cockpit for Claude Code sessions — browse history, stream live chat, approve tools, track costs",
+  "description": "A visual cockpit for Claude Code sessions — browse history, stream live chat, approve tools, track costs. Personal learning artifact, published as-is. Unofficial third-party tool. Not affiliated with or endorsed by Anthropic.",
   "author": "Bryan Yao",
   "license": "MIT",
   "repository": {

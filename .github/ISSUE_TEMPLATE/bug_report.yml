@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a bug to help improve ClaudeCockpit
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please fill out the form below so the issue can be reproduced quickly.
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: e.g. macOS 14.5, Ubuntu 22.04
+      placeholder: macOS 14.5
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      description: Output of `node --version`
+      placeholder: v22.11.0
+    validations:
+      required: true
+  - type: input
+    id: cli-version
+    attributes:
+      label: Claude Code CLI version
+      description: Output of `claude --version`
+      placeholder: 2.1.87
+    validations:
+      required: true
+  - type: input
+    id: cockpit-version
+    attributes:
+      label: ClaudeCockpit version
+      description: Output of `npx claude-cockpit --version`, or the git commit SHA if running from source
+      placeholder: 1.0.0
+    validations:
+      required: false
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: What you did, in order
+      placeholder: |
+        1. Ran `npx claude-cockpit`
+        2. Clicked the ... button
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include error messages, console output, or screenshots if helpful
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Related discussions, workarounds you tried, etc.
+    validations:
+      required: false

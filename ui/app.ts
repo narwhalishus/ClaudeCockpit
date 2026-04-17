@@ -209,7 +209,7 @@ export class CockpitApp extends LitElement {
         <nav class="shell-nav">
           <div class="sidebar">
             <div class="sidebar__header">
-              <img class="sidebar__logo" src="/logo.svg" alt="Claude Code" />
+              <img class="sidebar__logo" src="/logo.svg" alt="ClaudeCockpit" />
             </div>
             <div class="sidebar__project-selector">
               <select

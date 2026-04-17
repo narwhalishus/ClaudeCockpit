@@ -3,27 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ClaudeCockpit — Release Plan</title>
-  <link rel="icon" href="/favicon.ico" />
+  <title>ClaudeCockpit — Release Notes</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <style>
     :root {
       --bg: #0e1015;
       --bg-elevated: #191c24;
-      --bg-hover: #1f2330;
       --card: #161920;
       --text: #d4d4d8;
       --text-strong: #f4f4f5;
       --muted: #838387;
       --border: #1e2028;
-      --border-strong: #2e3040;
       --accent: #da7756;
       --accent-subtle: rgba(218, 119, 86, 0.1);
-      --ok: #22c55e;
-      --ok-subtle: rgba(34, 197, 94, 0.08);
-      --warn: #f59e0b;
-      --warn-subtle: rgba(245, 158, 11, 0.08);
-      --info: #3b82f6;
-      --info-subtle: rgba(59, 130, 246, 0.08);
       --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
       --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       --radius-md: 10px;
@@ -37,7 +29,7 @@
       color: var(--text);
       -webkit-font-smoothing: antialiased;
     }
-    .page { max-width: 900px; margin: 0 auto; padding: 48px 32px 96px; }
+    .page { max-width: 780px; margin: 0 auto; padding: 48px 32px 96px; }
     h1 {
       font-size: 32px; font-weight: 700; letter-spacing: -0.03em;
       color: var(--text-strong); margin: 0 0 8px;
@@ -55,178 +47,56 @@
       background: var(--bg-elevated); padding: 1px 5px;
       border-radius: 3px;
     }
-
-    /* Checklist cards */
-    .checklist {
+    p { color: var(--text); }
+    .note {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius-lg); padding: 20px 24px;
-      margin: 16px 0;
-    }
-    .checklist__title {
-      font-size: 16px; font-weight: 650; color: var(--text-strong);
-      margin: 0 0 12px;
-    }
-    .checklist__list {
-      list-style: none; padding: 0; margin: 0;
-    }
-    .checklist__list li {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 5px 0; font-size: 14px; color: var(--text);
-    }
-    .check { color: var(--ok); font-weight: 700; flex-shrink: 0; width: 20px; }
-    .pending { color: var(--muted); flex-shrink: 0; width: 20px; }
-
-    /* Content template cards */
-    .template {
-      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
       border-radius: var(--radius-md); padding: 16px 20px;
-      margin: 12px 0; font-size: 14px; line-height: 1.6;
+      margin: 16px 0; font-size: 14px; line-height: 1.7;
     }
-    .template__label {
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.06em; color: var(--accent); margin-bottom: 8px;
-    }
-    .template pre {
-      margin: 8px 0 0; padding: 12px 14px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 6px; font-family: var(--mono); font-size: 13px;
-      line-height: 1.5; color: var(--text); overflow-x: auto;
-      white-space: pre-wrap;
-    }
-
     .updated {
       margin-top: 48px; padding-top: 16px;
       border-top: 1px solid var(--border);
       color: var(--muted); font-size: 12px;
       font-family: var(--mono);
     }
-
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
   </style>
 </head>
 <body>
 <div class="page">
 
-  <h1>Release <span>Plan</span></h1>
+  <h1>Release <span>Notes</span></h1>
   <p class="subtitle">
-    v1.0 launch checklist and content templates for ClaudeCockpit.
+    ClaudeCockpit is a personal learning artifact, not an active product.
     <br><a href="/roadmap.html">Roadmap</a> &middot; <a href="/changelog.html">Changelog</a> &middot; <a href="/contributing.html">Contributing</a> &middot; <a href="/testing.html">Testing</a>
   </p>
 
-  <!-- ============================================================ -->
+  <h2>Status</h2>
 
-  <h2>Pre-release Checklist</h2>
-
-  <div class="checklist">
-    <div class="checklist__title">Code</div>
-    <ul class="checklist__list">
-      <li><span class="check">&#10003;</span> All Phase 1, 2, and 2.5 features complete</li>
-      <li><span class="check">&#10003;</span> <code>stripInternalTags</code> for clean session previews</li>
-      <li><span class="check">&#10003;</span> Auto-generated session titles via Haiku</li>
-      <li><span class="check">&#10003;</span> Session search/filter in sidebar</li>
-      <li><span class="check">&#10003;</span> Graceful error states (connection banner, CLI errors)</li>
-      <li><span class="check">&#10003;</span> <code>npm run ci</code> passes (typecheck + 362 tests + build)</li>
-    </ul>
+  <div class="note">
+    <strong>No active launch, no product roadmap.</strong> The repo is public and the <code>claude-cockpit</code> package is published to npm so <code>npx claude-cockpit</code> works for anyone curious. There is no promotion, no launch campaign, and no support commitment.
   </div>
 
-  <div class="checklist">
-    <div class="checklist__title">Release Artifacts</div>
-    <ul class="checklist__list">
-      <li><span class="check">&#10003;</span> MIT LICENSE file</li>
-      <li><span class="check">&#10003;</span> README.md with architecture, quick start, commands</li>
-      <li><span class="check">&#10003;</span> package.json: v1.0.0, description, author, license, repository, keywords</li>
-      <li><span class="check">&#10003;</span> Changelog updated with v1.0.0 entry</li>
-      <li><span class="check">&#10003;</span> Release plan (this page)</li>
-      <li><span class="pending">&#9744;</span> Screenshot/GIF for README (capture during final review)</li>
-      <li><span class="pending">&#9744;</span> GitHub repository set to public</li>
-      <li><span class="pending">&#9744;</span> GitHub release tag: <code>v1.0.0</code></li>
-    </ul>
-  </div>
+  <p>The Claude Code wrapper/dashboard space is crowded — Claude Deck, PandaProg's ClaudeCockpit, Anthropic's own Claude Desktop, and several others. Competing meaningfully against a first-party incumbent on its own substrate is a structurally losing race. Rather than take a product swing, this codebase is published as a reference implementation: a working browser gateway for Claude Code sessions, with live streaming, tool approval, session resume, and cost estimation.</p>
 
-  <!-- ============================================================ -->
+  <p>The implementation is MIT-licensed. Fork it, copy patterns, or ignore it — all fine.</p>
 
-  <h2>Launch Channels</h2>
+  <h2>For curious users</h2>
 
-  <div class="checklist">
-    <div class="checklist__title">Priority Order</div>
-    <ul class="checklist__list">
-      <li><span class="pending">&#9744;</span> <strong>Twitter/X</strong> — 4-5 tweet thread with GIF demos</li>
-      <li><span class="pending">&#9744;</span> <strong>Hacker News</strong> — Show HN post (Tue-Thu morning Pacific)</li>
-      <li><span class="pending">&#9744;</span> <strong>Reddit</strong> — r/ClaudeAI, r/ChatGPTCoding, r/webdev</li>
-      <li><span class="pending">&#9744;</span> <strong>Claude Code community</strong> — Discord, GitHub Discussions</li>
-      <li><span class="pending">&#9744;</span> <strong>Dev.to</strong> — Blog post: "I built a dashboard for my AI coding sessions"</li>
-    </ul>
-  </div>
+  <p>If you want to try it:</p>
+  <pre style="background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 20px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.6; color: var(--text);"><code>npx claude-cockpit</code></pre>
 
-  <!-- ============================================================ -->
+  <p>Requires Node.js 22+ and the <a href="https://claude.ai/code">Claude Code CLI</a> installed. Opens your browser to a local cockpit that reads your existing <code>~/.claude/projects/</code> session files.</p>
 
-  <h2>Content Templates</h2>
+  <h2>Reporting issues</h2>
 
-  <div class="template">
-    <div class="template__label">Twitter/X Thread</div>
-    <p><strong>Tweet 1 (Hook):</strong> I built a visual cockpit for Claude Code sessions. Browse history, stream live conversations, approve tools, track costs. Open source.</p>
-    <p><strong>Tweet 2:</strong> Session sidebar with search, day grouping, and auto-generated titles. Untitled CLI sessions get titles via Haiku in the background.</p>
-    <p><strong>Tweet 3:</strong> Live streaming with markdown, tool approval (approve/deny with keyboard shortcuts), and extended thinking blocks.</p>
-    <p><strong>Tweet 4:</strong> Cost tracking with Bedrock pricing estimates, token breakdown per session, and cache hit stats. One-click session summaries.</p>
-    <p><strong>Tweet 5:</strong> Built with Lit + Vite + TypeScript. Node.js gateway reads JSONL session files and spawns claude -p. 362 tests. MIT licensed.</p>
-    <p>Tags: @AnthropicAI #ClaudeCode #DevTools #OpenSource</p>
-  </div>
+  <p>GitHub Issues and Discussions are enabled. Responses are best-effort and may be slow. For anything urgent, fork and fix.</p>
 
-  <div class="template">
-    <div class="template__label">Hacker News</div>
-    <pre>Show HN: ClaudeCockpit – Visual dashboard for Claude Code sessions
+  <h2>What's in the box (v1.0)</h2>
 
-ClaudeCockpit is a browser-based dashboard for browsing and
-interacting with Claude Code sessions. It reads the JSONL session
-files that Claude Code writes to ~/.claude/projects/ and provides:
+  <p>See the <a href="/changelog.html">changelog</a> for the full history. The short version: three-panel session cockpit, live streaming chat with markdown + tool approval, auto-generated session titles via Haiku, Bedrock cost estimation, dark and light themes, 362 tests.</p>
 
-- Session browsing with search, pinning, and auto-generated titles
-- Live streaming chat via spawned claude -p processes
-- Interactive tool approval (approve/deny Bash, Edit, Write, etc.)
-- Token usage and estimated Bedrock cost tracking
-- One-click session summaries
-
-Stack: Lit web components, Vite, TypeScript. Node.js gateway with
-HTTP + WebSocket (custom req/res/event frame protocol). 362 tests.
-
-Personal tool, built for a single power user on macOS, but should
-work anywhere Claude Code runs.</pre>
-  </div>
-
-  <div class="template">
-    <div class="template__label">Reddit (r/ClaudeAI)</div>
-    <p><strong>Title:</strong> I built a visual cockpit for Claude Code — browse sessions, stream live chat, approve tools, track costs</p>
-    <p><strong>Body:</strong> After using Claude Code heavily for a few months, I wanted a way to browse my session history, re-read old conversations, and have a visual interface for live chat with tool approval. So I built ClaudeCockpit.</p>
-    <p>It reads the JSONL files Claude Code writes to disk, so there's no API key or account needed — it just works with your existing sessions. The gateway spawns <code>claude -p</code> subprocesses for live chat.</p>
-    <p>Open source (MIT): [GitHub link]</p>
-  </div>
-
-  <!-- ============================================================ -->
-
-  <h2>Post-launch</h2>
-
-  <div class="checklist">
-    <div class="checklist__title">First Week</div>
-    <ul class="checklist__list">
-      <li><span class="pending">&#9744;</span> Monitor and respond to GitHub issues</li>
-      <li><span class="pending">&#9744;</span> Add "good first issue" labels for easy contributions</li>
-      <li><span class="pending">&#9744;</span> Respond to HN/Reddit comments</li>
-      <li><span class="pending">&#9744;</span> Fix any reported bugs within 24h</li>
-    </ul>
-  </div>
-
-  <div class="checklist">
-    <div class="checklist__title">What's Next (Phase 3)</div>
-    <ul class="checklist__list">
-      <li><span class="pending">&#9744;</span> Usage analytics — token breakdown by day/model/project</li>
-      <li><span class="pending">&#9744;</span> Bedrock cost tracking with daily/weekly charts</li>
-      <li><span class="pending">&#9744;</span> Session export (markdown, JSON)</li>
-    </ul>
-  </div>
-
-  <p class="updated">Last updated: 2026-04-12</p>
+  <p class="updated">Last updated: 2026-04-17 — Sunset as personal project</p>
 
 </div>
 </body>
